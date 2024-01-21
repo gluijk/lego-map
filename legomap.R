@@ -1,6 +1,6 @@
 # Lego maps
 # www.overfitting.net
-# https://www.overfitting.net/2024/01/plegando-papel-con-r.html
+# https://www.overfitting.net/
 
 
 library(tiff)  # save 16-bit TIFF's
