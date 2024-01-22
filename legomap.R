@@ -21,8 +21,15 @@ arrayresample=function(img, DIMX, DIMY, method='bilinear') {
 
 ###########################################################
 
+# Read LEGO 1x1 brick
 brick=readPNG("legobrick46x46.png")
-# Pseudo 3D borders
+BRICKSIZE=nrow(brick)
+MIDGRAY=median(brick)  # median should be ~0.5 (8-bit 128/255)
+LOGMIDGRAY=log(MIDGRAY)  # log precalculation
+print(paste0("Median of brick vs 128/255: ", MIDGRAY, " vs ", 128/255))
+
+
+# Add pseudo 3D borders to base brick
 DARK=0.4
 LIGHT=0.6
 brick[1:2, 1:46]=LIGHT
@@ -32,12 +39,8 @@ brick[1:46, 1:2]=LIGHT
 brick[1, 45]=LIGHT
 brick[46, 2]=DARK
 
-MIDGRAY=median(brick)
-LOGMIDGRAY=log(MIDGRAY)
-print(paste0("Median of brick vs 128/255: ", MIDGRAY, " vs ", 128/255))
-BRICKSIZE=nrow(brick)
 
-LEGOSIZE=60
+LEGOSIZE=60  # output vertical size (number of LEGO bricks)
 for (name in c('retrato', 'beso', 'guadarrama', 'girasoles')) {
     print(name)
     img=readPNG(paste0(name, ".png"))
@@ -55,13 +58,15 @@ for (name in c('retrato', 'beso', 'guadarrama', 'girasoles')) {
     imglite[imglite<0.05]=0.05  # clip shadows to prevent blackening
     for (i in 1:DIMY) {
         for (j in 1:DIMX) {
-            for (k in 1:3) {
-                invgamma=log(imglite[i, j, k])/LOGMIDGRAY
+            for (chan in 1:3) {
+                # This gamma turns brick median (~0.5) into the pixel colour
+                gamma=1/(log(imglite[i, j, chan])/LOGMIDGRAY)
+                # Vectorized colouring for single brick RGB channel
                 imgout[((i-1)*BRICKSIZE+1):(i*BRICKSIZE),
-                       ((j-1)*BRICKSIZE+1):(j*BRICKSIZE), k]=brick^invgamma
+                       ((j-1)*BRICKSIZE+1):(j*BRICKSIZE), chan]=brick^(1/gamma)
             }
         }
     }
-    writeTIFF(imgout, paste0(name, "_lego.tif"), bits.per.sample=16, compression="LZW")
+    # writeTIFF(imgout, paste0(name, "_lego.tif"), bits.per.sample=16, compression="LZW")
     writePNG(imgout, paste0(name, "_lego.png"))
 }
