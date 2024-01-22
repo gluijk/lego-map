@@ -25,7 +25,6 @@ arrayresample=function(img, DIMX, DIMY, method='bilinear') {
 brick=readPNG("legobrick46x46.png")  #  46x46 pixels grayscale bitmap
 BRICKSIZE=nrow(brick)
 MIDGRAY=median(brick)  # median should be ~0.5 (8-bit 128/255)
-LOGMIDGRAY=log(MIDGRAY)  # log precalculation
 print(paste0("Median of brick vs 128/255: ", MIDGRAY, " vs ", 128/255))
 
 # Add pseudo 3D borders to base brick
@@ -59,7 +58,7 @@ for (name in c('retrato', 'beso', 'guadarrama', 'girasoles')) {
         for (j in 1:DIMX) {
             for (chan in 1:3) {
                 # This gamma turns brick median (~0.5) into the pixel colour
-                gamma=1/(log(imglite[i, j, chan])/LOGMIDGRAY)
+                gamma=1/(log(imglite[i, j, chan])/log(MIDGRAY))
                 # Vectorized colouring for single brick RGB channel
                 imgout[((i-1)*BRICKSIZE+1):(i*BRICKSIZE),
                        ((j-1)*BRICKSIZE+1):(j*BRICKSIZE), chan]=brick^(1/gamma)
