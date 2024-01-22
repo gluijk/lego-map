@@ -21,13 +21,12 @@ arrayresample=function(img, DIMX, DIMY, method='bilinear') {
 
 ###########################################################
 
-# Read LEGO 1x1 brick
+# Read and preprocess LEGO 1x1 brick
 brick=readPNG("legobrick46x46.png")
 BRICKSIZE=nrow(brick)
 MIDGRAY=median(brick)  # median should be ~0.5 (8-bit 128/255)
 LOGMIDGRAY=log(MIDGRAY)  # log precalculation
 print(paste0("Median of brick vs 128/255: ", MIDGRAY, " vs ", 128/255))
-
 
 # Add pseudo 3D borders to base brick
 DARK=0.4
