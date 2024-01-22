@@ -22,7 +22,7 @@ arrayresample=function(img, DIMX, DIMY, method='bilinear') {
 ###########################################################
 
 # Read and preprocess 1x1 LEGO brick
-brick=readPNG("legobrick46x46.png")
+brick=readPNG("legobrick46x46.png")  #  46x46 pixels grayscale bitmap
 BRICKSIZE=nrow(brick)
 MIDGRAY=median(brick)  # median should be ~0.5 (8-bit 128/255)
 LOGMIDGRAY=log(MIDGRAY)  # log precalculation
