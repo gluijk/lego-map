@@ -38,11 +38,8 @@ brick[1, 45]=LIGHT
 brick[46, 2]=DARK
 
 
-name=c('retrato', 'beso', 'guadarrama', 'girasoles', 'europe', 'world')
-K=c(8, 4, 7, 8, 6, 10)  # k-means clusters
-
-name=c('africa')
-K=c(10)  # k-means clusters
+name=c('retrato', 'beso', 'guadarrama', 'girasoles', 'africa')
+K=c(8, 4, 7, 8, 10)  # k-means clusters
 
 LEGOSIZE=60  # output vertical size (number of LEGO bricks)
 
@@ -131,7 +128,7 @@ for (n in 1:length(name)) {
     DIMY=nrow(imgclust)
     DIMX=ncol(imgclust)
     imgout=array(0, c(DIMY*BRICKSIZE, DIMX*BRICKSIZE, 3))
-
+    # imgclust=imglite
     imgclust[imgclust>0.95]=0.95  # clip highlights to prevent whitening
     imgclust[imgclust<0.05]=0.05  # clip shadows to prevent blackening
     for (i in 1:DIMY) {
@@ -146,7 +143,7 @@ for (n in 1:length(name)) {
         }
     }
     # writeTIFF(imgout, paste0(name[n], "_lego.tif"), bits.per.sample=16, compression="LZW")
-    writePNG(imgout, paste0(name[n], "_lego_degraded.png"))
+    writePNG(imgout, paste0(name[n], "_lego.png"))
 }
 
 
