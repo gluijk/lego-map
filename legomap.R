@@ -84,7 +84,7 @@ for (n in 1:length(name)) {
     breaks=seq(0, NCOLOURS, length.out=NCOLOURS+1)
     colores=rgb(centers[,1], centers[,2], centers[,3])
     hist(clustering, breaks=breaks, col=colores, # lty="blank",
-         main=paste0("'",name[n],"' cluster histogram (k=", K[n], ")"), axes=FALSE)
+         main=paste0("'", name[n], "' cluster histogram (k=", K[n], ")"), axes=FALSE)
     axis(1, at=breaks, labels=TRUE)
     dev.off()
     
@@ -92,9 +92,7 @@ for (n in 1:length(name)) {
     imgclust=array(0, c(DIMY*DIMX,3))  # configure DIMY*DIMX x 3 array
     for (i in 1:NCOLOURS) {  # loop through clusters
         indices=which(clustering==i)
-        for (chan in 1:3) {
-            imgclust[indices,chan]=centers[i,chan]
-        }
+        for (chan in 1:3) imgclust[indices,chan]=centers[i,chan]
     }
     dim(imgclust)=c(DIMY,DIMX,3)  # redim to DIMY x DIMX x 3 array (RGB image)
     
