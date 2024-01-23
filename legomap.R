@@ -57,78 +57,58 @@ for (n in 1:length(name)) {
     
     imglite=arrayresample(img, round(LEGOSIZE*DIMX/DIMY), LEGOSIZE)
     writePNG(imglite, paste0(name[n], "_lite.png"))
-
+    
     
     ################################
     # 2. K-MEANS CLUSTERING
-    
-    # MEDIAN AVERAGING
+
     DIMX=ncol(imglite)
     DIMY=nrow(imglite)
-
-    R=imglite[,,1]
-    G=imglite[,,2]
-    B=imglite[,,3]
-    dim(R)=length(R)
-    dim(G)=length(G)
-    dim(B)=length(B)
     
-    M=array(0, c(length(R), 3))  # Matriz RGB
+    # Rearrange imglite as a N x 3 array with three RGB values
+    M=cbind(c(imglite[,,1]), c(imglite[,,2]), c(imglite[,,3]))
     colnames(M)=c("R","G","B")
-    M[,1]=R
-    M[,2]=G
-    M[,3]=B
 
-    # K-MEANS CLUSTERING
+    # Standard k-means clustering
     NCOLOURS=K[n]  # k clusters
     set.seed(0)  # reproducible clustering
     kmeansfit=kmeans(subset(M, select=c("R","G","B")), centers=NCOLOURS,
                      nstart=1000, iter.max=500)  # high nstart can prevent from
     clustering=kmeansfit$cluster           # missing the tiniest clusters
-    centers=kmeansfit$centers
-    
+    centers=kmeansfit$centers  # clustering centroids (average colours)
+
     # Clustering histogram
     png(paste0(name[n],"_histogram.png"), width=512, height=400)
     breaks=seq(0, NCOLOURS, length.out=NCOLOURS+1)
-    colores=c()
-    for (h in 1:NCOLOURS) {
-        colores=c(colores, rgb(centers[h,1], centers[h,2], centers[h,3]))
-    }
+    colores=rgb(centers[,1], centers[,2], centers[,3])
     hist(clustering, breaks=breaks, col=colores, # lty="blank",
          main=paste0("'",name[n],"' cluster histogram (k=", K[n], ")"), axes=FALSE)
     axis(1, at=breaks, labels=TRUE)
     dev.off()
     
-    # Clustered image
-    imgcentersR=array(0, DIMY*DIMX)
-    imgcentersG=imgcentersR
-    imgcentersB=imgcentersR
-    for (i in 1:NCOLOURS) {
+    # Rebuild clustered image
+    imgclust=array(0, c(DIMY*DIMX,3))  # configure DIMY*DIMX x 3 array
+    for (i in 1:NCOLOURS) {  # loop through clusters
         indices=which(clustering==i)
-        imgcentersR[indices]=centers[i,1]
-        imgcentersG[indices]=centers[i,2]
-        imgcentersB[indices]=centers[i,3]
+        for (chan in 1:3) {
+            imgclust[indices,chan]=centers[i,chan]
+        }
     }
-    dim(imgcentersR)=c(DIMY,DIMX)
-    dim(imgcentersG)=c(DIMY,DIMX)
-    dim(imgcentersB)=c(DIMY,DIMX)
+    dim(imgclust)=c(DIMY,DIMX,3)  # restore DIMY x DIMX x 3 array
     
-    imgclust=array(0, c(DIMY,DIMX,3))
-    imgclust[,,1]=imgcentersR
-    imgclust[,,2]=imgcentersG
-    imgclust[,,3]=imgcentersB
     # writeTIFF(imgclust, paste0(name[n],"_clustered.tif"),
     #           bits.per.sample=16, compression="LZW")
     writePNG(imgclust, paste0(name[n],"_lite_clustered.png"))
-
+    
     
     ################################
     # 3. BUILD FINAL IMAGE WITH LEGO BRICKS
-
+    
     DIMY=nrow(imgclust)
     DIMX=ncol(imgclust)
     imgout=array(0, c(DIMY*BRICKSIZE, DIMX*BRICKSIZE, 3))
-    # imgclust=imglite
+    
+    # imgclust=imglite  # to get colour gradients output
     imgclust[imgclust>0.95]=0.95  # clip highlights to prevent whitening
     imgclust[imgclust<0.05]=0.05  # clip shadows to prevent blackening
     for (i in 1:DIMY) {
@@ -145,5 +125,4 @@ for (n in 1:length(name)) {
     # writeTIFF(imgout, paste0(name[n], "_lego.tif"), bits.per.sample=16, compression="LZW")
     writePNG(imgout, paste0(name[n], "_lego.png"))
 }
-
 
