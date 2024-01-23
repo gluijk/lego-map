@@ -38,14 +38,16 @@ brick[1, 45]=LIGHT
 brick[46, 2]=DARK
 
 
+# List of images to LEGOnize
 name=c('retrato', 'beso', 'guadarrama', 'girasoles', 'africa')
 K=c(8, 4, 7, 8, 10)  # k-means clusters
 
 LEGOSIZE=60  # output vertical size (number of LEGO bricks)
 
-# Pipeline: img (input) -> imglite (downsized) -> imgclust (clustered)
+# Pipeline:
+# img (input) -> imglite (downsized) -> imgclust (clustered) -> imgout (LEGO)
 for (n in 1:length(name)) {
-    print(paste0("Resizing, clustering (k=", K[n], ") and LEGOing '",
+    print(paste0("Resizing, clustering (k=", K[n], ") and LEGOnizing '",
                  name[n], "'..."))
     
     ################################
@@ -65,7 +67,7 @@ for (n in 1:length(name)) {
     DIMX=ncol(imglite)
     DIMY=nrow(imglite)
     
-    # Rearrange imglite as a N x 3 array with three RGB values
+    # Rearrange imglite as a N x 3 array with RGB values in 3 columns
     M=cbind(c(imglite[,,1]), c(imglite[,,2]), c(imglite[,,3]))
     colnames(M)=c("R","G","B")
 
@@ -94,7 +96,7 @@ for (n in 1:length(name)) {
             imgclust[indices,chan]=centers[i,chan]
         }
     }
-    dim(imgclust)=c(DIMY,DIMX,3)  # restore DIMY x DIMX x 3 array
+    dim(imgclust)=c(DIMY,DIMX,3)  # redim to DIMY x DIMX x 3 array (RGB image)
     
     # writeTIFF(imgclust, paste0(name[n],"_clustered.tif"),
     #           bits.per.sample=16, compression="LZW")
@@ -114,7 +116,7 @@ for (n in 1:length(name)) {
     for (i in 1:DIMY) {
         for (j in 1:DIMX) {
             for (chan in 1:3) {
-                # This gamma turns brick median (~0.5) into the pixel colour
+                # Gamma turns brick median (~0.5) into desired pixel colour
                 gamma=1/(log(imgclust[i, j, chan])/log(MIDGRAY))
                 # Vectorized colouring for single brick RGB channel
                 imgout[((i-1)*BRICKSIZE+1):(i*BRICKSIZE),
@@ -125,4 +127,3 @@ for (n in 1:length(name)) {
     # writeTIFF(imgout, paste0(name[n], "_lego.tif"), bits.per.sample=16, compression="LZW")
     writePNG(imgout, paste0(name[n], "_lego.png"))
 }
-
