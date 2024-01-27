@@ -86,7 +86,10 @@ K=c(4)  # k-means clusters
 name=c('tenerife')
 K=c(8)  # k-means clusters
 
-LEGOSIZE=50  # output vertical size (number of LEGO bricks)
+name=c('world5')
+K=c(10)  # k-means clusters
+
+LEGOSIZE=80  # output vertical size (number of LEGO bricks)
 
 
 # Pipeline:
@@ -166,8 +169,9 @@ for (n in 1:length(name)) {
     NSIZES=length(LEGOBRICKS)
 
     NBRICKS=0
-    # for (k in 1:NCOLOURS) {  # loop trough clusters
-    for (k in c(1,3,4,5,6,7,8)) {  # ignore cluster 2 (Tenerife's sea)
+    for (k in 1:NCOLOURS) {  # loop trough clusters
+    # for (k in c(1,3,4,5,6,7,8)) {  # ignore cluster 2 (Tenerife's sea)
+    # for (k in c(1,2,4,5,6,7,8,9,10)) {  # ignore cluster 4 (World map's sea)
         indices=which(clustering==k)
         imgclust1=array(0, c(DIMY, DIMX))
         imgclust1[indices]=1  # set to 1 pixels belonging to cluster k
