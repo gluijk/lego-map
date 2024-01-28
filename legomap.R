@@ -29,10 +29,8 @@ drawbrick=function(img, xmin, xmax, ymin, ymax,
     # Build base grayscale brick
     for (i in ymin:ymax) {
         for (j in xmin:xmax)
-            for (chan in 1:3) { imgout[((i-1)*BRICKSIZE+1):(i*BRICKSIZE),
-                                       ((j-1)*BRICKSIZE+1):(j*BRICKSIZE),
-                                       chan]=brick
-        }
+            imgout[((i-1)*BRICKSIZE+1):(i*BRICKSIZE),
+                   ((j-1)*BRICKSIZE+1):(j*BRICKSIZE),]=replicate(3, brick)
     }
     
     # Brick limits in imgout
@@ -171,7 +169,7 @@ for (n in 1:length(name)) {
     NBRICKS=0
     for (k in 1:NCOLOURS) {  # loop trough clusters
     # for (k in c(1,3,4,5,6,7,8)) {  # ignore cluster 2 (Tenerife's sea)
-    # for (k in c(1,2,4,5,6,7,8,9,10)) {  # ignore cluster 4 (World map's sea)
+    for (k in c(1,2,4,5,6,7,8,9,10)) {  # ignore cluster 4 (World map's sea)
         indices=which(clustering==k)
         imgclust1=array(0, c(DIMY, DIMX))
         imgclust1[indices]=1  # set to 1 pixels belonging to cluster k
