@@ -25,7 +25,7 @@ drawbrick=function(img, xmin, xmax, ymin, ymax,
     DARK=0.3
     LIGHT=0.7
     
-    imgout=img
+    imgout=img  # creating a local variable is faster
     # Build base grayscale brick
     for (i in ymin:ymax) {
         for (j in xmin:xmax)
