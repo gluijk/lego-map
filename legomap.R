@@ -60,6 +60,44 @@ drawbrick=function(img, xmin, xmax, ymin, ymax,
 }
 
 
+# Function to draw an arbitrarily sized brick with borders
+drawbrick=function(img,
+                   xmin, xmax, ymin, ymax,
+                   brick, BRICKSIZE, colgamma) {
+    DARK=0.3
+    LIGHT=0.7
+    
+    imgout=img  # creating a local variable is faster
+    # Build base grayscale brick
+    for (i in ymin:ymax) {
+        for (j in xmin:xmax)
+            imgout[((i-1)*BRICKSIZE+1):(i*BRICKSIZE),
+                   ((j-1)*BRICKSIZE+1):(j*BRICKSIZE),]=replicate(3, brick)
+    }
+    
+    # Brick limits in imgout
+    rangeymin = (ymin-1)*BRICKSIZE+1
+    rangeymax = ymax*BRICKSIZE
+    rangexmin = (xmin-1)*BRICKSIZE+1
+    rangexmax = xmax*BRICKSIZE
+    
+    # Draw pseudo 3D borders
+    imgout[rangeymin:(rangeymin+2), rangexmin:rangexmax,]=LIGHT
+    imgout[rangeymin:rangeymax, (rangexmax-2):rangexmax,]=DARK
+    imgout[(rangeymax-2):rangeymax, rangexmin:rangexmax,]=DARK
+    imgout[rangeymin:rangeymax, rangexmin:(rangexmin+2),]=LIGHT
+    imgout[rangeymin, rangexmax-1,]=LIGHT
+    imgout[rangeymin:(rangeymin+1), rangexmax-2,]=LIGHT
+    imgout[rangeymax, rangexmin+1,]=DARK
+    imgout[(rangeymax-1):rangeymax, rangexmin+2,]=DARK
+    
+    # Colour brick according to imgcolour
+    for (chan in 1:3) imgout[rangeymin:rangeymax, rangexmin:rangexmax, chan]=
+        imgout[rangeymin:rangeymax, rangexmin:rangexmax, chan]^(1/colgamma[chan])
+    
+    return(imgout)
+}
+
 
 ###########################################################
 
@@ -134,13 +172,13 @@ for (n in 1:length(name)) {
     centers=kmeansfit$centers  # clustering centroids (average colours)
 
     # Recolour using basic LEGO colours
-    centers[1,]=col2rgb("gray5")/255
+    centers[1,]=col2rgb("black")/255
     centers[3,]=col2rgb("darkorange")/255
     centers[4,]=col2rgb("darkolivegreen")/255
     centers[5,]=col2rgb("khaki3")/255
     centers[6,]=col2rgb("brown1")/255
     centers[7,]=col2rgb("gold")/255
-    centers[8,]=col2rgb("blue")/255
+    centers[8,]=col2rgb("deepskyblue3")/255
     
     # Clustering histogram
     png(paste0("hist_", name[n], ".png"), width=512, height=400)
@@ -153,9 +191,9 @@ for (n in 1:length(name)) {
     
     # Build clustered coloured image
     imgclust=array(0, c(DIMY*DIMX,3))  # configure DIMY*DIMX x 3 array
-    for (i in 1:NCOLOURS) {  # loop through clusters
-        indices=which(clustering==i)
-        for (chan in 1:3) imgclust[indices,chan]=centers[i,chan]
+    for (k in 1:NCOLOURS) {  # loop through clusters
+        indices=which(clustering==k)
+        for (chan in 1:3) imgclust[indices, chan]=centers[k, chan]
     }
     dim(imgclust)=c(DIMY,DIMX,3)  # redim to DIMY x DIMX x 3 array (RGB image)
     
@@ -165,23 +203,30 @@ for (n in 1:length(name)) {
     
     
     ################################
-    # 3. BUILD FINAL IMAGE WITH LEGO BRICKS
+    # 3. BUILD OUTPUT IMAGE WITH LEGO BRICKS
     
+    SAFE=0.05  # margin from 0/1 to prevent colour clipping
     DIMY=nrow(imgclust)
     DIMX=ncol(imgclust)
     imgout=array(0, c(DIMY*BRICKSIZE, DIMX*BRICKSIZE, 3))
     
     # imgclust=imglite  # to preserve colour gradients output
-    imgclust[imgclust>0.95]=0.95  # clip highlights to prevent whitening
-    imgclust[imgclust<0.05]=0.05  # clip shadows to prevent blackening
+    imgclust[imgclust > 1-SAFE]=1-SAFE  # clip highlights to prevent whitening
+    imgclust[imgclust <   SAFE]=SAFE  # clip shadows to prevent blackening
+    colgamma=array(0, c(NCOLOURS,3))  # gamma that will produce each channel's colour
+    for (k in 1:NCOLOURS) {
+        colk=centers[k,]
+        colk[colk > 1-SAFE]=1-SAFE
+        colk[colk <   SAFE]=SAFE
+        for (chan in 1:3) colgamma[k, chan]=1/(log(colk[chan])/log(MIDGRAY))
+    }
 
     # Brute force LEGO brick fitting algorithm
-    LEGOBRICKS=list(c(8,8), c(6,6), c(6,4), c(4,4), c(2,4), c(2,3), c(2,2),
+    LEGOBRICKS=list(c(8,8), c(6,6), c(6,4), c(4,4), c(4,2), c(3,2), c(2,2),
                     c(4,1), c(3,1), c(2,1), c(1,1))  # hierarchical list
     NSIZES=length(LEGOBRICKS)
     Inventory=array(0, c(NCOLOURS, NSIZES))  # how many bricks of each colour and size
 
-    NBRICKS=0
     # for (k in 1:NCOLOURS) {  # loop trough clusters
     for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 2 (Tenerife's sea)
     # for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 4 (World map's sea)
@@ -199,9 +244,10 @@ for (n in 1:length(name)) {
                     for (j in 1:(DIMX-DIMXBRICK+1)) {  # X axis (cols)
                         imax=i+DIMYBRICK-1
                         jmax=j+DIMXBRICK-1
-                        if (sum(imgclust1[i:imax, j:jmax])==AREABRICK) {  # all 1's=brick match
-                            imgout=drawbrick(imgout, j, jmax, i, imax,
-                                             brick, BRICKSIZE, MIDGRAY, imgclust)
+                        if (sum(imgclust1[i:imax, j:jmax])==AREABRICK) {  # all 1's=brick matc
+                            imgout=drawbrick(imgout,
+                                             j, jmax, i, imax,
+                                             brick, BRICKSIZE, colgamma[k,])
                             imgclust1[i:imax, j:jmax]=0  # remove drawn brick
                             Inventory[k, size]=Inventory[k, size]+1
                         }
@@ -227,14 +273,18 @@ for (n in 1:length(name)) {
     DIMY=max(unlist(LEGOBRICKS))
     DIMX=DIMY
     imginvent=array(1, c(DIMY*BRICKSIZE*NCOLOURS, DIMX*BRICKSIZE*NSIZES, 3))
-    for (k in 1:NCOLOURS) {  # colours -> rows
+    # for (k in 1:NCOLOURS) {  # colours -> rows
+    for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 2 (Tenerife's sea)
         for (size in 1:NSIZES) {  # sizes -> cols
+            if (Inventory[k, size]) {  # colour/size was used?
             DIMYBRICK=LEGOBRICKS[[size]][1]
             DIMXBRICK=LEGOBRICKS[[size]][2]
             imginvent=drawbrick(imginvent,
                                 (size-1)*DIMX+1, (size-1)*DIMX+DIMXBRICK,
                                 (k-1)*DIMY+1, (k-1)*DIMY+DIMYBRICK,
-                                brick, BRICKSIZE, MIDGRAY, imgclust)
+                                brick, BRICKSIZE, colgamma[k,])
+            }
+        }
     }
     # writeTIFF(imginvent, paste0(name[n], "_lego.tif"),
     #           bits.per.sample=16, compression="LZW")
