@@ -19,7 +19,7 @@ arrayresample=function(img, DIMX, DIMY, method='bilinear') {
 }
 
 
-# Function to draw an arbitrarily sized brick
+# Function to draw an arbitrarily sized brick with borders
 drawbrick=function(img, xmin, xmax, ymin, ymax,
                    brick, BRICKSIZE, MIDGRAY, imgcolour) {
     DARK=0.3
@@ -40,12 +40,14 @@ drawbrick=function(img, xmin, xmax, ymin, ymax,
     rangexmax = xmax*BRICKSIZE
     
     # Draw pseudo 3D borders
-    imgout[rangeymin:(rangeymin+1), rangexmin:rangexmax,]=LIGHT
-    imgout[rangeymin:rangeymax, (rangexmax-1):rangexmax,]=DARK
-    imgout[(rangeymax-1):rangeymax, rangexmin:rangexmax,]=DARK
-    imgout[rangeymin:rangeymax, rangexmin:(rangexmin+1),]=LIGHT
+    imgout[rangeymin:(rangeymin+2), rangexmin:rangexmax,]=LIGHT
+    imgout[rangeymin:rangeymax, (rangexmax-2):rangexmax,]=DARK
+    imgout[(rangeymax-2):rangeymax, rangexmin:rangexmax,]=DARK
+    imgout[rangeymin:rangeymax, rangexmin:(rangexmin+2),]=LIGHT
     imgout[rangeymin, rangexmax-1,]=LIGHT
+    imgout[rangeymin:(rangeymin+1), rangexmax-2,]=LIGHT
     imgout[rangeymax, rangexmin+1,]=DARK
+    imgout[(rangeymax-1):rangeymax, rangexmin+2,]=DARK
     
     # Colour brick according to imgcolour
     for (chan in 1:3) {
@@ -63,7 +65,7 @@ drawbrick=function(img, xmin, xmax, ymin, ymax,
 
 # Read and preprocess 1x1 LEGO brick
 brick=readPNG("legobrick46x46.png")  #  46x46 pixels grayscale bitmap
-brick=readPNG("legobrick25x25.png")  #  25x25 pixels grayscale bitmap
+# brick=readPNG("legobrick25x25.png")  #  25x25 pixels grayscale bitmap
 BRICKSIZE=nrow(brick)
 MIDGRAY=median(brick)  # median should be ~0.5 (8-bit 128/255)
 print(paste0("Median of brick vs 128/255: ", MIDGRAY, " vs ", 128/255))
@@ -81,13 +83,16 @@ K=c(14)  # k-means clusters
 name=c('pokemon')
 K=c(4)  # k-means clusters
 
-name=c('tenerife')
-K=c(8)  # k-means clusters
-
 name=c('world5')
 K=c(10)  # k-means clusters
 
-LEGOSIZE=80  # output vertical size (number of LEGO bricks)
+name=c('peninsula')
+K=c(8)  # k-means clusters
+
+name=c('tenerife')
+K=c(8)  # k-means clusters
+
+LEGOSIZE=50  # output vertical size (number of LEGO bricks)
 
 
 # Pipeline:
@@ -127,6 +132,15 @@ for (n in 1:length(name)) {
                      nstart=1000, iter.max=500)  # high nstart can prevent from
     clustering=kmeansfit$cluster           # missing the tiniest clusters
     centers=kmeansfit$centers  # clustering centroids (average colours)
+
+    # Recolour using basic LEGO colours
+    centers[1,]=col2rgb("gray5")/255
+    centers[3,]=col2rgb("darkorange")/255
+    centers[4,]=col2rgb("darkolivegreen")/255
+    centers[5,]=col2rgb("khaki3")/255
+    centers[6,]=col2rgb("brown1")/255
+    centers[7,]=col2rgb("gold")/255
+    centers[8,]=col2rgb("blue")/255
     
     # Clustering histogram
     png(paste0("hist_", name[n], ".png"), width=512, height=400)
@@ -165,21 +179,22 @@ for (n in 1:length(name)) {
     LEGOBRICKS=list(c(8,8), c(6,6), c(6,4), c(4,4), c(2,4), c(2,3), c(2,2),
                     c(4,1), c(3,1), c(2,1), c(1,1))  # hierarchical list
     NSIZES=length(LEGOBRICKS)
+    Inventory=array(0, c(NCOLOURS, NSIZES))  # how many bricks of each colour and size
 
     NBRICKS=0
-    for (k in 1:NCOLOURS) {  # loop trough clusters
-    # for (k in c(1,3,4,5,6,7,8)) {  # ignore cluster 2 (Tenerife's sea)
-    for (k in c(1,2,4,5,6,7,8,9,10)) {  # ignore cluster 4 (World map's sea)
+    # for (k in 1:NCOLOURS) {  # loop trough clusters
+    for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 2 (Tenerife's sea)
+    # for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 4 (World map's sea)
         indices=which(clustering==k)
         imgclust1=array(0, c(DIMY, DIMX))
         imgclust1[indices]=1  # set to 1 pixels belonging to cluster k
-        for (l in 1:NSIZES) {  # loop trough brick sizes
-            DIMYBRICK=LEGOBRICKS[[l]][1]
-            DIMXBRICK=LEGOBRICKS[[l]][2]
+        for (size in 1:NSIZES) {  # loop trough brick sizes
+            DIMYBRICK=LEGOBRICKS[[size]][1]
+            DIMXBRICK=LEGOBRICKS[[size]][2]
             AREABRICK=DIMXBRICK*DIMYBRICK
 
             # Try both 0º and 90º rotation on non-square bricks
-            for (rotate in 1:ifelse(DIMYBRICK==DIMXBRICK, 1, 2)) {
+            for (orientation in 1:ifelse(DIMYBRICK==DIMXBRICK, 1, 2)) {
                 for (i in 1:(DIMY-DIMYBRICK+1)) {  # Y axis (rows)
                     for (j in 1:(DIMX-DIMXBRICK+1)) {  # X axis (cols)
                         imax=i+DIMYBRICK-1
@@ -188,12 +203,12 @@ for (n in 1:length(name)) {
                             imgout=drawbrick(imgout, j, jmax, i, imax,
                                              brick, BRICKSIZE, MIDGRAY, imgclust)
                             imgclust1[i:imax, j:jmax]=0  # remove drawn brick
-                            NBRICKS=NBRICKS+1
+                            Inventory[k, size]=Inventory[k, size]+1
                         }
                     }
                 }
-                DIMYBRICK=LEGOBRICKS[[l]][2]  # will run only for non-square bricks
-                DIMXBRICK=LEGOBRICKS[[l]][1]
+                DIMYBRICK=LEGOBRICKS[[size]][2]  # will run only for non-square bricks
+                DIMXBRICK=LEGOBRICKS[[size]][1]
             }
         }
     }
@@ -201,5 +216,27 @@ for (n in 1:length(name)) {
     # writeTIFF(imgout, paste0(name[n], "_lego.tif"),
     #           bits.per.sample=16, compression="LZW")
     writePNG(imgout, paste0("LEGO_", name[n], ".png"))
+    
+    
+    ################################
+    # 4. BUILD INVENTORY IMAGE
+    
+    NBRICKS=sum(Inventory)
     print(paste0(NBRICKS, " bricks used"))
+    Inventory
+    DIMY=max(unlist(LEGOBRICKS))
+    DIMX=DIMY
+    imginvent=array(1, c(DIMY*BRICKSIZE*NCOLOURS, DIMX*BRICKSIZE*NSIZES, 3))
+    for (k in 1:NCOLOURS) {  # colours -> rows
+        for (size in 1:NSIZES) {  # sizes -> cols
+            DIMYBRICK=LEGOBRICKS[[size]][1]
+            DIMXBRICK=LEGOBRICKS[[size]][2]
+            imginvent=drawbrick(imginvent,
+                                (size-1)*DIMX+1, (size-1)*DIMX+DIMXBRICK,
+                                (k-1)*DIMY+1, (k-1)*DIMY+DIMYBRICK,
+                                brick, BRICKSIZE, MIDGRAY, imgclust)
+    }
+    # writeTIFF(imginvent, paste0(name[n], "_lego.tif"),
+    #           bits.per.sample=16, compression="LZW")
+    writePNG(imginvent, paste0("inventory_", name[n], ".png"))
 }
