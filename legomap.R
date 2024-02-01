@@ -20,49 +20,8 @@ arrayresample=function(img, DIMX, DIMY, method='bilinear') {
 
 
 # Function to draw an arbitrarily sized brick with borders
-drawbrick=function(img, xmin, xmax, ymin, ymax,
-                   brick, BRICKSIZE, MIDGRAY, imgcolour) {
-    DARK=0.3
-    LIGHT=0.7
-    
-    imgout=img  # creating a local variable is faster
-    # Build base grayscale brick
-    for (i in ymin:ymax) {
-        for (j in xmin:xmax)
-            imgout[((i-1)*BRICKSIZE+1):(i*BRICKSIZE),
-                   ((j-1)*BRICKSIZE+1):(j*BRICKSIZE),]=replicate(3, brick)
-    }
-    
-    # Brick limits in imgout
-    rangeymin = (ymin-1)*BRICKSIZE+1
-    rangeymax = ymax*BRICKSIZE
-    rangexmin = (xmin-1)*BRICKSIZE+1
-    rangexmax = xmax*BRICKSIZE
-    
-    # Draw pseudo 3D borders
-    imgout[rangeymin:(rangeymin+2), rangexmin:rangexmax,]=LIGHT
-    imgout[rangeymin:rangeymax, (rangexmax-2):rangexmax,]=DARK
-    imgout[(rangeymax-2):rangeymax, rangexmin:rangexmax,]=DARK
-    imgout[rangeymin:rangeymax, rangexmin:(rangexmin+2),]=LIGHT
-    imgout[rangeymin, rangexmax-1,]=LIGHT
-    imgout[rangeymin:(rangeymin+1), rangexmax-2,]=LIGHT
-    imgout[rangeymax, rangexmin+1,]=DARK
-    imgout[(rangeymax-1):rangeymax, rangexmin+2,]=DARK
-    
-    # Colour brick according to imgcolour
-    for (chan in 1:3) {
-        gamma=1/(log(imgcolour[ymin, xmin, chan])/log(MIDGRAY))
-        imgout[rangeymin:rangeymax, rangexmin:rangexmax, chan]=
-            imgout[rangeymin:rangeymax, rangexmin:rangexmax, chan]^(1/gamma)
-    }
-
-    return(imgout)
-}
-
-
-# Function to draw an arbitrarily sized brick with borders
 drawbrick=function(img,
-                   xmin, xmax, ymin, ymax,
+                   ymin, ymax, xmin, xmax,
                    brick, BRICKSIZE, colgamma) {
     DARK=0.3
     LIGHT=0.7
@@ -99,6 +58,120 @@ drawbrick=function(img,
 }
 
 
+# Functions to write numbers in Inventory
+
+NewBitmap = function(dimx, dimy, val=0) {
+    # Crea bitmap de dimensiones dimx y dimy
+    return(array(val,c(dimx,dimy)))
+}
+
+# Por Carlos Gil Bellosta
+indices.drawline = function(x0, y0, x1, y1) {
+    x0=round(x0)
+    x1=round(x1)
+    y0=round(y0)
+    y1=round(y1)
+    
+    if (y0 == y1) return(cbind(x0:x1, y0)) # Recta de m=0 o un punto
+    if (abs(x1 - x0) >= abs(y1 - y0)) { # Recta de 0 < |m| <= 1
+        m = (y1 - y0) / (x1 - x0)
+        cbind(x0:x1, round(y0 + m * ((x0:x1) - x0)))
+    } else indices.drawline(y0, x0, y1, x1)[, 2:1]  # Recta de |m| > 1
+    # Llamada traspuesta recursiva y traspuesta
+}
+
+DrawLine = function(img, x0, y0, x1, y1, inc=TRUE, val=1) {
+    # Dibuja recta desde (x0,y0)-(x1,y1)
+    # Por defecto m?todo no destructivo y con valor=1
+    indices=indices.drawline(x0, y0, x1, y1)
+    if (inc) img[indices]=img[indices]+val
+    else img[indices]=val
+    
+    return(img)
+}
+
+DrawRect = function(img, x0, y0, x1, y1, inc=TRUE, val=1, fill=FALSE) {
+    # Dibuja rectángulo (x0,y0)-(x1,y1)
+    # Por defecto m?todo no destructivo, con valor=1 y sin relleno
+    x0=round(x0)
+    x1=round(x1)
+    y0=round(y0)
+    y1=round(y1)
+    
+    if (fill) {
+        if (inc) img[x0:x1,y0:y1]=img[x0:x1,y0:y1]+val
+        else img[x0:x1,y0:y1]=val
+        
+        return(img)
+    } else {
+        indices=which( ( (row(img)==x0         | row(img)==x1        ) &
+                             (col(img)>=min(y0,y1) & col(img)<=max(y0,y1)) ) |
+                           ( (col(img)==y0         | col(img)==y1        ) &
+                                 (row(img)>=min(x0,x1) & row(img)<=max(x0,x1)) ) )
+        if (inc) img[indices]=img[indices]+val
+        else img[indices]=val
+        
+        return(img)
+    }
+}
+
+DibujarNumero = function(img, x0, y0, inc=FALSE, val=1, fill=FALSE,
+                         num, width, height) {
+    # Dibuja cifra 0-9 en (x0,y0)
+    # Por defecto método no destructivo y con valor=1
+    
+    if (num=='0') { 
+        img=DrawRect(img, x0, y0, x0+width, y0-height, inc, val, fill)
+    } else if (num=='1') {
+        img=DrawLine(img, x0+width/2, y0, x0+width/2, y0-height, inc, val)
+    } else if (num=='2') {
+        img=DrawLine(img, x0, y0, x0+width, y0, inc, val)
+        img=DrawLine(img, x0+width, y0, x0+width, y0-height/2, inc, val)
+        img=DrawLine(img, x0+width, y0-height/2, x0, y0-height/2, inc, val)
+        img=DrawLine(img, x0, y0-height/2, x0, y0-height, inc, val)
+        img=DrawLine(img, x0, y0-height, x0+width, y0-height, inc, val)
+    } else if (num=='3') {
+        img=DrawLine(img, x0, y0, x0+width, y0, inc, val)
+        img=DrawLine(img, x0, y0-height/2, x0+width, y0-height/2, inc, val)
+        img=DrawLine(img, x0, y0-height, x0+width, y0-height, inc, val)
+        img=DrawLine(img, x0+width, y0, x0+width, y0-height, inc, val)
+    } else if (num=='4') {
+        img=DrawLine(img, x0, y0, x0, y0-height/2, inc, val)
+        img=DrawLine(img, x0, y0-height/2, x0+width, y0-height/2, inc, val)
+        img=DrawLine(img, x0+width, y0, x0+width, y0-height, inc, val)
+    } else if (num=='5') {
+        img=DrawLine(img, x0+width, y0, x0, y0, inc, val)
+        img=DrawLine(img, x0, y0, x0, y0-height/2, inc, val)
+        img=DrawLine(img, x0, y0-height/2, x0+width, y0-height/2, inc, val)
+        img=DrawLine(img, x0+width, y0-height/2, x0+width, y0-height, inc, val)
+        img=DrawLine(img, x0+width, y0-height, x0, y0-height, inc, val)
+    } else if (num=='6') {
+        img=DrawRect(img, x0, y0-height/2, x0+width, y0-height, inc, val, fill)
+        img=DrawLine(img, x0, y0, x0+width, y0, inc, val)
+        img=DrawLine(img, x0, y0, x0, y0-height/2, inc, val)
+    } else if (num=='7') {
+        img=DrawLine(img, x0, y0, x0+width, y0, inc, val)
+        img=DrawLine(img, x0+width, y0, x0+width, y0-height, inc, val)
+    } else if (num=='8') {
+        img=DrawRect(img, x0, y0, x0+width, y0-height/2, inc, val, fill)
+        img=DrawRect(img, x0, y0-height/2, x0+width, y0-height, inc, val, fill)
+    } else if (num=='9') {
+        img=DrawRect(img, x0, y0, x0+width, y0-height/2, inc, val, fill)
+        img=DrawLine(img, x0+width, y0-height/2, x0+width, y0-height, inc, val)
+        img=DrawLine(img, x0, y0-height, x0+width, y0-height, inc, val)
+    } else if (num=='-') {
+        img=DrawLine(img, x0, y0-height/2, x0+width, y0-height/2, inc, val)
+    } else if (num=='x') {
+        img=DrawLine(img, x0, y0-height, x0+width, y0-height/2, inc, val)
+        img=DrawLine(img, x0, y0-height/2, x0+width, y0-height, inc, val)
+    } else {
+        return(img)  # Cifra inválida
+    }
+    
+    return(img)
+}
+
+
 ###########################################################
 
 # Read and preprocess 1x1 LEGO brick
@@ -121,6 +194,9 @@ K=c(14)  # k-means clusters
 name=c('pokemon')
 K=c(4)  # k-means clusters
 
+name=c('pokemon2')
+K=c(5)  # k-means clusters
+
 name=c('world5')
 K=c(10)  # k-means clusters
 
@@ -131,6 +207,7 @@ name=c('tenerife')
 K=c(8)  # k-means clusters
 
 LEGOSIZE=50  # output vertical size (number of LEGO bricks)
+LEGOSIZE=24  # output vertical size (number of LEGO bricks)
 
 
 # Pipeline:
@@ -150,14 +227,14 @@ for (n in 1:length(name)) {
     imglite=arrayresample(img, round(LEGOSIZE*DIMX/DIMY), LEGOSIZE)
     writePNG(imglite, paste0("lite_", name[n], ".png"))
     
-    
+
     ################################
     # 2. K-MEANS CLUSTERING
-    
+
     DIMX=ncol(imglite)
     DIMY=nrow(imglite)
     
-    imglite[is.na(imglite)]=0
+    imglite[is.na(imglite)]=0  # restore NA values (cluster will be dropped)
     
     # Rearrange imglite as a N x 3 array with RGB values in 3 columns
     M=cbind(c(imglite[,,1]), c(imglite[,,2]), c(imglite[,,3]))
@@ -173,6 +250,7 @@ for (n in 1:length(name)) {
 
     # Recolour using basic LEGO colours
     centers[1,]=col2rgb("black")/255
+    #  centers[2,]=col2rgb("azure")/255
     centers[3,]=col2rgb("darkorange")/255
     centers[4,]=col2rgb("darkolivegreen")/255
     centers[5,]=col2rgb("khaki3")/255
@@ -222,13 +300,22 @@ for (n in 1:length(name)) {
     }
 
     # Brute force LEGO brick fitting algorithm
-    LEGOBRICKS=list(c(8,8), c(6,6), c(6,4), c(4,4), c(4,2), c(3,2), c(2,2),
-                    c(4,1), c(3,1), c(2,1), c(1,1))  # hierarchical list
+    LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4), c(2,3), c(2,2),
+                    c(1,4), c(1,3), c(1,2), c(1,1))  # hierarchical list
     NSIZES=length(LEGOBRICKS)
+    # Order bricks to draw them horizontally in the Inventory
+    for (size in 1:NSIZES) {
+        if (LEGOBRICKS[[size]][1]>LEGOBRICKS[[size]][2]) {
+            tmp=LEGOBRICKS[[size]][1]
+            LEGOBRICKS[[size]][1]=LEGOBRICKS[[size]][2]
+            LEGOBRICKS[[size]][2]=tmp
+        }
+    }
     Inventory=array(0, c(NCOLOURS, NSIZES))  # how many bricks of each colour and size
 
     # for (k in 1:NCOLOURS) {  # loop trough clusters
-    for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 2 (Tenerife's sea)
+    # for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 2 (Tenerife's sea)
+    for (k in c(2,3,4,5)) {  # skip cluster 1 (Pokemon's border)
     # for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 4 (World map's sea)
         indices=which(clustering==k)
         imgclust1=array(0, c(DIMY, DIMX))
@@ -239,14 +326,15 @@ for (n in 1:length(name)) {
             AREABRICK=DIMXBRICK*DIMYBRICK
 
             # Try both 0º and 90º rotation on non-square bricks
-            for (orientation in 1:ifelse(DIMYBRICK==DIMXBRICK, 1, 2)) {
+            NORIENTATIONS=ifelse(DIMYBRICK==DIMXBRICK, 1, 2)
+            for (orientation in 1:NORIENTATIONS) {
                 for (i in 1:(DIMY-DIMYBRICK+1)) {  # Y axis (rows)
                     for (j in 1:(DIMX-DIMXBRICK+1)) {  # X axis (cols)
                         imax=i+DIMYBRICK-1
                         jmax=j+DIMXBRICK-1
-                        if (sum(imgclust1[i:imax, j:jmax])==AREABRICK) {  # all 1's=brick matc
+                        if (sum(imgclust1[i:imax, j:jmax])==AREABRICK) {  # all 1's=brick match
                             imgout=drawbrick(imgout,
-                                             j, jmax, i, imax,
+                                             i, imax, j, jmax, 
                                              brick, BRICKSIZE, colgamma[k,])
                             imgclust1[i:imax, j:jmax]=0  # remove drawn brick
                             Inventory[k, size]=Inventory[k, size]+1
@@ -258,6 +346,8 @@ for (n in 1:length(name)) {
             }
         }
     }
+    NBRICKS=sum(Inventory)
+    print(paste0(NBRICKS, " bricks used"))
 
     # writeTIFF(imgout, paste0(name[n], "_lego.tif"),
     #           bits.per.sample=16, compression="LZW")
@@ -266,27 +356,76 @@ for (n in 1:length(name)) {
     
     ################################
     # 4. BUILD INVENTORY IMAGE
-    
-    NBRICKS=sum(Inventory)
-    print(paste0(NBRICKS, " bricks used"))
-    Inventory
-    DIMY=max(unlist(LEGOBRICKS))
-    DIMX=DIMY
-    imginvent=array(1, c(DIMY*BRICKSIZE*NCOLOURS, DIMX*BRICKSIZE*NSIZES, 3))
-    # for (k in 1:NCOLOURS) {  # colours -> rows
-    for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 2 (Tenerife's sea)
-        for (size in 1:NSIZES) {  # sizes -> cols
-            if (Inventory[k, size]) {  # colour/size was used?
-            DIMYBRICK=LEGOBRICKS[[size]][1]
-            DIMXBRICK=LEGOBRICKS[[size]][2]
-            imginvent=drawbrick(imginvent,
-                                (size-1)*DIMX+1, (size-1)*DIMX+DIMXBRICK,
-                                (k-1)*DIMY+1, (k-1)*DIMY+DIMYBRICK,
-                                brick, BRICKSIZE, colgamma[k,])
-            }
+
+    GAPY=1
+    GAPX=3
+    # All rows in Inventory (clusters) are used -> usedsizesDIMY
+    # for (k in 1:NCOLOURS) {
+    usedsizesDIMY=seq(0, 0, length.out=NCOLOURS-1)
+    # for (k in c(1,3,4,5,6,7,8)) {
+    for (k in c(2,3,4,5)) {  # skip cluster 1 (Pokemon's border)
+        maxDIMY=0
+        for (size in 1:NSIZES) {
+            if (Inventory[k, size] & LEGOBRICKS[[size]][1]>maxDIMY) maxDIMY=LEGOBRICKS[[size]][1]
         }
+        usedsizesDIMY[k]=maxDIMY
     }
+    
+    # Only some cols in Inventory (sizes) are used -> usedsizesDIMX
+    usedsizes=ifelse(colSums(Inventory)>0,1,0)
+    usedsizesDIMX=usedsizes
+    for (size in 1:NSIZES) usedsizesDIMX[size]=
+        usedsizesDIMX[size]*LEGOBRICKS[[size]][2]
+    
+    # Build matrix to acoomodate all used bricks
+    imginvent=array(1, c((sum(usedsizesDIMY) + GAPY*(NCOLOURS-1))*BRICKSIZE,
+                         (sum(usedsizesDIMX) + GAPX*sum(usedsizes))*BRICKSIZE,
+                         3))
+
+    posY=0
+    # for (k in 1:NCOLOURS) {
+    #for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 2 (Tenerife's sea)
+    for (k in c(2,3,4,5)) {  # skip cluster 1 (Pokemon's border)
+        posX=0
+        for (size in 1:NSIZES) {
+            if (Inventory[k, size]) {  # colour/size was used?
+                # print(paste0("(k=", k,", size=", size, ") used"))
+                DIMYBRICK=LEGOBRICKS[[size]][1]
+                DIMXBRICK=LEGOBRICKS[[size]][2]
+                imginvent=drawbrick(imginvent,
+                                    posY+1, posY+DIMYBRICK,
+                                    posX+1, posX+DIMXBRICK,
+                                    brick, BRICKSIZE, colgamma[k,])
+                
+                # Write label with number of bricks
+                TXT=paste0('x', as.character(Inventory[k, size]))
+                LONG=nchar(TXT)
+                label=NewBitmap(122, 43)
+                for (i in 1:LONG) {
+                    num=substring(TXT, i, i)
+                    label=DibujarNumero(label, 2+(i-1)*30, 42, num=num, width=20, height=40)
+                }
+                label=t(label[,ncol(label):1])
+                
+                # Stroke=3
+                label[1:41,2:121]=label[1:41,2:121]+label[2:42,2:121]
+                label[3:43,2:121]=label[3:43,2:121]+label[2:42,2:121]
+                label[2:42,1:120]=label[2:42,1:120]+label[2:42,2:121]
+                label[2:42,3:122]=label[2:42,3:122]+label[2:42,2:121]
+                label[label!=0]=1
+                
+                imginvent[(posY*BRICKSIZE+3):(posY*BRICKSIZE+3+43-1),
+                          ((posX+DIMXBRICK)*BRICKSIZE+8):((posX+DIMXBRICK)*BRICKSIZE+8+122-1), ]=replicate(3, 1-label)
+
+            }
+            posX=posX+usedsizesDIMX[size]+usedsizes[size]*GAPX
+        }
+        posY=posY+usedsizesDIMY[k]+GAPY
+    }
+    
+
     # writeTIFF(imginvent, paste0(name[n], "_lego.tif"),
     #           bits.per.sample=16, compression="LZW")
     writePNG(imginvent, paste0("inventory_", name[n], ".png"))
 }
+
