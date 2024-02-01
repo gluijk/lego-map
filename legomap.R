@@ -377,7 +377,7 @@ for (n in 1:length(name)) {
     for (size in 1:NSIZES) usedsizesDIMX[size]=
         usedsizesDIMX[size]*LEGOBRICKS[[size]][2]
     
-    # Build matrix to acoomodate all used bricks
+    # Build matrix to accomodate all used bricks
     imginvent=array(1, c((sum(usedsizesDIMY) + GAPY*(NCOLOURS-1))*BRICKSIZE,
                          (sum(usedsizesDIMX) + GAPX*sum(usedsizes))*BRICKSIZE,
                          3))
