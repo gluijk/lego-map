@@ -179,7 +179,8 @@ legomap = function(img, name, k=8,
                                    c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
                                    c(1,1)),  # hierarchical list
                    resize=TRUE, LEGOSIZEX=0, LEGOSIZEY=0,
-                   background=FALSE, backgroundcolour=c(0, 0, 0)) {
+                   background=FALSE, backgroundcolour=c(0, 0, 0),
+                   randomcolours=FALSE) {
     # img: DIMY x DIMX x 3 array containing an RGB image
     # name: output PNG files will be created with this name
     # k: number of colours in the clustering (including background if exists)
@@ -190,6 +191,7 @@ legomap = function(img, name, k=8,
     # background: bool to indicate that there is a background colour that
     #     must be ignored in the rescaling so it doesn't adulterate borders
     # backgroundcolour: the EXACT RGB colour to be isolated (0..255 int scale)
+    # randomcolours: randomize clustering colours instead of using centroids
 
     require(png)  # read/save 8-bit PNG's
     require(terra)  # resample
@@ -275,6 +277,10 @@ legomap = function(img, name, k=8,
         
         # Recolour using basic LEGO colours
         # centers[1,]=col2rgb("black")/255 ...
+        if (randomcolours) {
+            centers=centers+runif(length(centers))  # randomize colours
+            centers[centers>1]=centers[centers>1]-1
+        }
         
         # Clustering histogram
         png(paste0(name, "_hist.png"), width=512, height=400)
@@ -461,7 +467,7 @@ inventory=legomap(img, 'conciertokraftwerk', k=3,
         background=TRUE, backgroundcolour=c(242, 94, 94))
 
 img=readPNG("tenerife.png")
-inventory=legomap(img, 'tenerife', k=8,
+inventory=legomap(img, 'tenerife2', k=8,
         LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
                         c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
                         c(1,1)),
@@ -474,7 +480,8 @@ inventory=legomap(img, 'peninsula', k=8,
                                   c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
                                   c(1,1)),
                   resize=TRUE, LEGOSIZEY=80,
-                  background=TRUE, backgroundcolour=c(0, 0, 0))
+                  background=TRUE, backgroundcolour=c(0, 0, 0),
+                  randomcolours=TRUE)
 
 img=readPNG("africa.png")
 inventory=legomap(img, 'africa', k=7,
@@ -491,3 +498,12 @@ inventory=legomap(img, 'pokemon', k=5,
                                   c(1,1)),
                   resize=FALSE,
                   background=TRUE, backgroundcolour=c(255, 255, 255))
+
+# CRASH -> FIX
+img=readPNG("rihanna.png")
+inventory=legomap(img, 'rihanna', k=0,
+                  LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
+                                  c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
+                                  c(1,1)),
+                  resize=TRUE, LEGOSIZEY=50,
+                  background=FALSE)
