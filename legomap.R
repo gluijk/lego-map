@@ -174,134 +174,148 @@ DibujarNumero = function(img, x0, y0, inc=FALSE, val=1, fill=FALSE,
 
 ###########################################################
 
-# Read and preprocess 1x1 LEGO brick
-brick=readPNG("legobrick46x46.png")  #  46x46 pixels grayscale bitmap
-# brick=readPNG("legobrick25x25.png")  #  25x25 pixels grayscale bitmap
-BRICKSIZE=nrow(brick)
-MIDGRAY=median(brick)  # median should be ~0.5 (8-bit 128/255)
-print(paste0("Median of brick vs 128/255: ", MIDGRAY, " vs ", 128/255))
+legomap = function(img, name, k=8,
+                   LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
+                                   c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
+                                   c(1,1)),  # hierarchical list
+                   resize=TRUE, LEGOSIZEX=0, LEGOSIZEY=0,
+                   background=FALSE, backgroundcolour=c(0, 0, 0)) {
+    # img: DIMY x DIMX x 3 array containin an RGB image
+    # name: output PNG files will be created with this name
+    # k: number of colours in the clustering (including background if exists)
+    #    if k=0 no clustering is applied and gradients are preserved
+    # resize: bool to indicate that image must be rescaled
+    # LEGOSIZEX/LEGOSIZEY: output size in 1x1 LEGO bricks
+    #     if any of them is 0, aspect ratio is preserved using the other one
+    # background: bool to indicate that there is a background colour that
+    #     must be ignored in the rescaling so it doesn't adulterate borders
+    # backgroundcolour: the EXACT RGB colour to be isolated (0..255 int scale)
 
+    require(png)  # read/save 8-bit PNG's
+    require(terra)  # resample
+    
+    brick=readPNG("legobrick46x46.png")  #  46x46 pixels grayscale bitmap
+    # brick=readPNG("legobrick25x25.png")  #  25x25 pixels grayscale bitmap
+    BRICKSIZE=nrow(brick)
+    MIDGRAY=median(brick)  # median should be ~0.5 (8-bit 128/255)
+    # print(paste0("Median of brick vs 128/255: ", MIDGRAY, " vs ", 128/255))
 
-# List of images to LEGOnize
-name=c('perla', 'gioconda', 'modigliani', 'girasoles', 'picasso',
-       'warhol', 'vangogh', 'urbino', 'katemoss', 'retrato', 'beso',
-       'guadarrama', 'world', 'world2', 'world3', 'world4', 'world5', 'africa')
-K=c(7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7)  # k-means clusters
-
-name=c('sonic')
-K=c(14)  # k-means clusters
-
-name=c('pokemon')
-K=c(4)  # k-means clusters
-
-name=c('pokemon2')
-K=c(5)  # k-means clusters
-
-name=c('world5')
-K=c(10)  # k-means clusters
-
-name=c('peninsula')
-K=c(8)  # k-means clusters
-
-name=c('tenerife')
-K=c(8)  # k-means clusters
-
-LEGOSIZE=50  # output vertical size (number of LEGO bricks)
-LEGOSIZE=24  # output vertical size (number of LEGO bricks)
-
-
-# Pipeline:
-# img (input) -> imglite (downsized) -> imgclust (clustered) -> imgout (LEGO)
-for (n in 1:length(name)) {
-    print(paste0("Resizing, clustering (k=", K[n], ") and LEGOnizing '",
-                 name[n], "'..."))
+    
+    # Pipeline:
+    # img (input) -> imglite (downsized) -> imgclust (clustered) -> imgout (LEGO)
     
     ################################
     # 1. DOWNSIZE IMAGE
     
-    img=readPNG(paste0(name[n], ".png"))
     DIMY=nrow(img)
     DIMX=ncol(img)
-    
-    img[img==0]=NA  # ignore blacks in resample to prevent creating mixed colours
-    imglite=arrayresample(img, round(LEGOSIZE*DIMX/DIMY), LEGOSIZE)
-    writePNG(imglite, paste0("lite_", name[n], ".png"))
-    
 
+    # Set background to NA so it doesn't participate in the resampling
+    if (background) {
+        print(paste0("Isolating background on '", name, "'..."))
+        dim(img)=c(DIMY*DIMX, 3)  # redim to DIMY*DIMX x 3 array (RGB list)
+        for (i in 1:nrow(img))
+            if (identical(img[i,]*255, backgroundcolour)) img[i,]=NA
+        dim(img)=c(DIMY, DIMX, 3)  # restore DIMY x DIMX x 3 array (RGB image)
+    }
+    
+    # Resize
+    if (resize) {
+        print(paste0("Resizing '", name, "'..."))
+        if (LEGOSIZEX & LEGOSIZEY) {
+            imglite=arrayresample(img, LEGOSIZEX, LEGOSIZEY)
+        } else  if (LEGOSIZEX) {
+            imglite=arrayresample(img, LEGOSIZEX, round(LEGOSIZEX*DIMY/DIMX))
+        } else imglite=arrayresample(img, round(LEGOSIZEY*DIMX/DIMY), LEGOSIZEY)
+
+        DIMY=nrow(imglite)
+        DIMX=ncol(imglite)
+        
+    } else imglite=img  # no size change, imglite=img
+    
+    # Restore background to original RGB values
+    if (background) {
+        # Store background pixel locations separately
+        imglitebackround=imglite*0  # set all pixels to 0 but NA
+        imglitebackround[is.na(imglitebackround)]=1  # set NA pixels to 1
+        writePNG(imglitebackround, paste0(name, "_lite_BGD.png"))
+        imgbackround=arrayresample(imglitebackround, method='near',
+                                   DIMX*BRICKSIZE, DIMY*BRICKSIZE)
+        
+        dim(imglite)=c(DIMY*DIMX, 3)  # redim to DIMY*DIMX x 3 array (RGB list)
+        for (i in 1:nrow(imglite)) {
+            if (is.na(imglite[i,1])) {
+                for (chan in 1:3) imglite[i,chan]=backgroundcolour[chan]/255
+            }
+        }
+        dim(imglite)=c(DIMY, DIMX, 3)  # restore DIMY x DIMX x 3 array (RGB image)
+    }
+
+    writePNG(imglite, paste0(name, "_lite.png"))
+
+    
     ################################
     # 2. K-MEANS CLUSTERING
+ 
+    NCOLOURS=k  # k clusters
+    
+    if (k) {
+        print(paste0("Clustering (k=", k, ") '", name, "'..."))
+        
+        # Rearrange imglite as a N x 3 array with RGB values in 3 columns
+        M=cbind(c(imglite[,,1]), c(imglite[,,2]), c(imglite[,,3]))
+        colnames(M)=c("R", "G", "B")
+        
+        # Standard k-means clustering
+        set.seed(0)  # reproducible clustering
+        kmeansfit=kmeans(subset(M, select=c("R", "G", "B")), centers=NCOLOURS,
+                         nstart=2000, iter.max=1000)  # high nstart can prevent from
+        clustering=kmeansfit$cluster           # missing the tiniest clusters
+        centers=kmeansfit$centers  # clustering centroids (average colours)
+        
+        # Recolour using basic LEGO colours
+        # centers[1,]=col2rgb("black")/255 ...
+        
+        # Clustering histogram
+        png(paste0("hist_", name, ".png"), width=512, height=400)
+        breaks=seq(0, NCOLOURS, length.out=NCOLOURS+1)
+        colores=rgb(centers[,1], centers[,2], centers[,3])
+        hist(clustering, breaks=breaks, col=colores, # lty="blank",
+             main=paste0("'", name, "' cluster histogram (k=", k, ")"), axes=FALSE)
+        axis(1, at=breaks, labels=TRUE)
+        dev.off()
+        
+        # Build clustered coloured image
+        imgclust=array(0, c(DIMY*DIMX, 3))  # configure DIMY*DIMX x 3 array
+        for (k in 1:NCOLOURS) {  # loop through clusters
+            indices=which(clustering==k)
+            for (chan in 1:3) imgclust[indices, chan]=centers[k, chan]
+        }
+        dim(imgclust)=c(DIMY, DIMX, 3)  # redim to DIMY x DIMX x 3 array (RGB image)
+        
+        writePNG(imgclust, paste0(name, "_cluster.png"))
+    } else imgclust=imglite  # ignores clustering preserving colour gradients
 
-    DIMX=ncol(imglite)
-    DIMY=nrow(imglite)
-    
-    imglite[is.na(imglite)]=0  # restore NA values (cluster will be dropped)
-    
-    # Rearrange imglite as a N x 3 array with RGB values in 3 columns
-    M=cbind(c(imglite[,,1]), c(imglite[,,2]), c(imglite[,,3]))
-    colnames(M)=c("R","G","B")
-    
-    # Standard k-means clustering
-    NCOLOURS=K[n]  # k clusters
-    set.seed(0)  # reproducible clustering
-    kmeansfit=kmeans(subset(M, select=c("R","G","B")), centers=NCOLOURS,
-                     nstart=1000, iter.max=500)  # high nstart can prevent from
-    clustering=kmeansfit$cluster           # missing the tiniest clusters
-    centers=kmeansfit$centers  # clustering centroids (average colours)
-
-    # Recolour using basic LEGO colours
-    centers[1,]=col2rgb("black")/255
-    #  centers[2,]=col2rgb("azure")/255
-    centers[3,]=col2rgb("darkorange")/255
-    centers[4,]=col2rgb("darkolivegreen")/255
-    centers[5,]=col2rgb("khaki3")/255
-    centers[6,]=col2rgb("brown1")/255
-    centers[7,]=col2rgb("gold")/255
-    centers[8,]=col2rgb("deepskyblue3")/255
-    
-    # Clustering histogram
-    png(paste0("hist_", name[n], ".png"), width=512, height=400)
-    breaks=seq(0, NCOLOURS, length.out=NCOLOURS+1)
-    colores=rgb(centers[,1], centers[,2], centers[,3])
-    hist(clustering, breaks=breaks, col=colores, # lty="blank",
-         main=paste0("'", name[n], "' cluster histogram (k=", K[n], ")"), axes=FALSE)
-    axis(1, at=breaks, labels=TRUE)
-    dev.off()
-    
-    # Build clustered coloured image
-    imgclust=array(0, c(DIMY*DIMX,3))  # configure DIMY*DIMX x 3 array
-    for (k in 1:NCOLOURS) {  # loop through clusters
-        indices=which(clustering==k)
-        for (chan in 1:3) imgclust[indices, chan]=centers[k, chan]
-    }
-    dim(imgclust)=c(DIMY,DIMX,3)  # redim to DIMY x DIMX x 3 array (RGB image)
-    
-    # writeTIFF(imgclust, paste0(name[n],"_clustered.tif"),
-    #           bits.per.sample=16, compression="LZW")
-    writePNG(imgclust, paste0("cluster_", name[n], ".png"))
-    
     
     ################################
     # 3. BUILD OUTPUT IMAGE WITH LEGO BRICKS
     
+    print(paste0("Building LEGO '", name, "'..."))
+    
     SAFE=0.05  # margin from 0/1 to prevent colour clipping
-    DIMY=nrow(imgclust)
-    DIMX=ncol(imgclust)
     imgout=array(0, c(DIMY*BRICKSIZE, DIMX*BRICKSIZE, 3))
     
-    # imgclust=imglite  # to preserve colour gradients output
     imgclust[imgclust > 1-SAFE]=1-SAFE  # clip highlights to prevent whitening
     imgclust[imgclust <   SAFE]=SAFE  # clip shadows to prevent blackening
-    colgamma=array(0, c(NCOLOURS,3))  # gamma that will produce each channel's colour
+    colgamma=array(0, c(NCOLOURS, 3))  # gamma that will produce each channel's colour
     for (k in 1:NCOLOURS) {
         colk=centers[k,]
         colk[colk > 1-SAFE]=1-SAFE
         colk[colk <   SAFE]=SAFE
         for (chan in 1:3) colgamma[k, chan]=1/(log(colk[chan])/log(MIDGRAY))
     }
-
+    
     # Brute force LEGO brick fitting algorithm
-    LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4), c(2,3), c(2,2),
-                    c(1,4), c(1,3), c(1,2), c(1,1))  # hierarchical list
     NSIZES=length(LEGOBRICKS)
     # Order bricks to draw them horizontally in the Inventory
     for (size in 1:NSIZES) {
@@ -312,11 +326,8 @@ for (n in 1:length(name)) {
         }
     }
     Inventory=array(0, c(NCOLOURS, NSIZES))  # how many bricks of each colour and size
-
-    # for (k in 1:NCOLOURS) {  # loop trough clusters
-    # for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 2 (Tenerife's sea)
-    for (k in c(2,3,4,5)) {  # skip cluster 1 (Pokemon's border)
-    # for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 4 (World map's sea)
+    
+    for (k in 1:NCOLOURS) {  # loop trough clusters
         indices=which(clustering==k)
         imgclust1=array(0, c(DIMY, DIMX))
         imgclust1[indices]=1  # set to 1 pixels belonging to cluster k
@@ -324,7 +335,7 @@ for (n in 1:length(name)) {
             DIMYBRICK=LEGOBRICKS[[size]][1]
             DIMXBRICK=LEGOBRICKS[[size]][2]
             AREABRICK=DIMXBRICK*DIMYBRICK
-
+            
             # Try both 0º and 90º rotation on non-square bricks
             NORIENTATIONS=ifelse(DIMYBRICK==DIMXBRICK, 1, 2)
             for (orientation in 1:NORIENTATIONS) {
@@ -348,22 +359,28 @@ for (n in 1:length(name)) {
     }
     NBRICKS=sum(Inventory)
     print(paste0(NBRICKS, " bricks used"))
-
-    # writeTIFF(imgout, paste0(name[n], "_lego.tif"),
-    #           bits.per.sample=16, compression="LZW")
-    writePNG(imgout, paste0("LEGO_", name[n], ".png"))
+    
+    # Save version with LEGOnized background
+    writePNG(imgout, paste0(name, "_LEGO_BGD.png"))
+    
+    # Save version with plain colour background
+    for (chan in 1:3) {
+        indices=which(imgbackround[,,chan]==1)
+        imgout[,,chan][indices]=backgroundcolour[chan]/255        
+    }
+    writePNG(imgout, paste0(name, "_LEGO.png"))    
     
     
     ################################
     # 4. BUILD INVENTORY IMAGE
-
+    
+    print(paste0("Inventorying '", name, "'..."))
+    
     GAPY=1
     GAPX=3
     # All rows in Inventory (clusters) are used -> usedsizesDIMY
-    # for (k in 1:NCOLOURS) {
-    usedsizesDIMY=seq(0, 0, length.out=NCOLOURS-1)
-    # for (k in c(1,3,4,5,6,7,8)) {
-    for (k in c(2,3,4,5)) {  # skip cluster 1 (Pokemon's border)
+    usedsizesDIMY=seq(0, 0, length.out=NCOLOURS)
+    for (k in 1:NCOLOURS) {
         maxDIMY=0
         for (size in 1:NSIZES) {
             if (Inventory[k, size] & LEGOBRICKS[[size]][1]>maxDIMY) maxDIMY=LEGOBRICKS[[size]][1]
@@ -372,24 +389,21 @@ for (n in 1:length(name)) {
     }
     
     # Only some cols in Inventory (sizes) are used -> usedsizesDIMX
-    usedsizes=ifelse(colSums(Inventory)>0,1,0)
+    usedsizes=ifelse(colSums(Inventory)>0, 1, 0)
     usedsizesDIMX=usedsizes
     for (size in 1:NSIZES) usedsizesDIMX[size]=
         usedsizesDIMX[size]*LEGOBRICKS[[size]][2]
     
-    # Build matrix to accomodate all used bricks
+    # Build matrix to acoomodate all used bricks
     imginvent=array(1, c((sum(usedsizesDIMY) + GAPY*(NCOLOURS-1))*BRICKSIZE,
                          (sum(usedsizesDIMX) + GAPX*sum(usedsizes))*BRICKSIZE,
                          3))
-
+    
     posY=0
-    # for (k in 1:NCOLOURS) {
-    #for (k in c(1,3,4,5,6,7,8)) {  # skip cluster 2 (Tenerife's sea)
-    for (k in c(2,3,4,5)) {  # skip cluster 1 (Pokemon's border)
+    for (k in 1:NCOLOURS) {
         posX=0
         for (size in 1:NSIZES) {
             if (Inventory[k, size]) {  # colour/size was used?
-                # print(paste0("(k=", k,", size=", size, ") used"))
                 DIMYBRICK=LEGOBRICKS[[size]][1]
                 DIMXBRICK=LEGOBRICKS[[size]][2]
                 imginvent=drawbrick(imginvent,
@@ -397,7 +411,7 @@ for (n in 1:length(name)) {
                                     posX+1, posX+DIMXBRICK,
                                     brick, BRICKSIZE, colgamma[k,])
                 
-                # Write label with number of bricks
+                # Write label indicating number of bricks
                 TXT=paste0('x', as.character(Inventory[k, size]))
                 LONG=nchar(TXT)
                 label=NewBitmap(122, 43)
@@ -416,16 +430,64 @@ for (n in 1:length(name)) {
                 
                 imginvent[(posY*BRICKSIZE+3):(posY*BRICKSIZE+3+43-1),
                           ((posX+DIMXBRICK)*BRICKSIZE+8):((posX+DIMXBRICK)*BRICKSIZE+8+122-1), ]=replicate(3, 1-label)
-
             }
             posX=posX+usedsizesDIMX[size]+usedsizes[size]*GAPX
         }
         posY=posY+usedsizesDIMY[k]+GAPY
     }
     
-
-    # writeTIFF(imginvent, paste0(name[n], "_lego.tif"),
-    #           bits.per.sample=16, compression="LZW")
-    writePNG(imginvent, paste0("inventory_", name[n], ".png"))
+    writePNG(imginvent, paste0(name, "_inventory.png"))
+    
+    return(Inventory)  # return matrix with inventory
 }
 
+
+
+# Examples
+img=readPNG("kraftwerk.png")
+inventory=legomap(img, 'kraftwerk', k=3,
+          LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
+                          c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
+                          c(1,1)),
+          resize=FALSE,
+          background=TRUE, backgroundcolour=c(242, 94, 94))
+
+img=readPNG("conciertokraftwerk.png")
+inventory=legomap(img, 'conciertokraftwerk', k=3,
+        LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
+                        c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
+                        c(1,1)),
+        resize=FALSE,
+        background=TRUE, backgroundcolour=c(242, 94, 94))
+
+img=readPNG("tenerife.png")
+inventory=legomap(img, 'tenerife', k=8,
+        LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
+                        c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
+                        c(1,1)),
+        resize=TRUE, LEGOSIZEY=50,
+        background=TRUE, backgroundcolour=c(0, 0, 0))
+
+img=readPNG("peninsula.png")
+inventory=legomap(img, 'peninsula', k=8,
+                  LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
+                                  c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
+                                  c(1,1)),
+                  resize=TRUE, LEGOSIZEY=80,
+                  background=TRUE, backgroundcolour=c(0, 0, 0))
+
+img=readPNG("africa.png")
+inventory=legomap(img, 'africa', k=7,
+        LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
+                        c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
+                        c(1,1)),
+        resize=TRUE, LEGOSIZEY=40,
+        background=TRUE, backgroundcolour=c(255, 255, 255))
+
+img=readPNG("pokemon.png")
+inventory=legomap(img, 'pokemon', k=5,
+                  LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
+                                  c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
+                                  c(1,1)),
+                  resize=FALSE,
+                  background=TRUE, backgroundcolour=c(255, 255, 255))
