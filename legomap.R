@@ -180,7 +180,7 @@ legomap = function(img, name, k=8,
                                    c(1,1)),  # hierarchical list
                    resize=TRUE, LEGOSIZEX=0, LEGOSIZEY=0,
                    background=FALSE, backgroundcolour=c(0, 0, 0)) {
-    # img: DIMY x DIMX x 3 array containin an RGB image
+    # img: DIMY x DIMX x 3 array containing an RGB image
     # name: output PNG files will be created with this name
     # k: number of colours in the clustering (including background if exists)
     #    if k=0 no clustering is applied and gradients are preserved
@@ -277,10 +277,10 @@ legomap = function(img, name, k=8,
         # centers[1,]=col2rgb("black")/255 ...
         
         # Clustering histogram
-        png(paste0(name, _hist.png"), width=512, height=400)
+        png(paste0(name, "_hist.png"), width=512, height=400)
         breaks=seq(0, NCOLOURS, length.out=NCOLOURS+1)
         colores=rgb(centers[,1], centers[,2], centers[,3])
-        hist(clustering, breaks=breaks, col=colores, # lty="blank",
+        hist(clustering, breaks=breaks, col=colores,  # lty="blank",
              main=paste0("'", name, "' cluster histogram (k=", k, ")"), axes=FALSE)
         axis(1, at=breaks, labels=TRUE)
         dev.off()
