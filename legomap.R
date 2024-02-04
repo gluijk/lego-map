@@ -277,7 +277,7 @@ legomap = function(img, name, k=8,
         # centers[1,]=col2rgb("black")/255 ...
         
         # Clustering histogram
-        png(paste0("hist_", name, ".png"), width=512, height=400)
+        png(paste0(name, _hist.png"), width=512, height=400)
         breaks=seq(0, NCOLOURS, length.out=NCOLOURS+1)
         colores=rgb(centers[,1], centers[,2], centers[,3])
         hist(clustering, breaks=breaks, col=colores, # lty="blank",
