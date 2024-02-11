@@ -26,7 +26,8 @@ arraydownsample=function(img, DIMX=0, DIMY=0,
 
     DIMYorg=nrow(img)
     DIMXorg=ncol(img)
-    if (!DIMX) DIMX=round(DIMY*DIMXorg/DIMYorg) else DIMY=round(DIMX*DIMYorg/DIMXorg) 
+    if (!DIMX) DIMX=round(DIMY*DIMXorg/DIMYorg)
+    else if (!DIMY) DIMY=round(DIMX*DIMYorg/DIMXorg)    
 
     imgout=array(0, c(DIMY, DIMX, 3))
     backgroundcolour=backgroundcolour/255  # convert 0..255 range to 0..1
@@ -556,12 +557,3 @@ inventory=legomap(img, 'guadarrama', k=7,
                   resize=TRUE, LEGOSIZEY=80,
                   background=FALSE,
                   randomcolours=FALSE)
-
-
-
-
-
-
-
-
-
