@@ -240,14 +240,14 @@ legomap = function(img, name, k=8,
 
     
     
-    img=readPNG("africa.png")
-    name='africa'
-    k=10
+    img=readPNG("tenerife.png")
+    name='tenerife'
+    k=8  # 10
     resize=TRUE
-    LEGOSIZEY=60
+    LEGOSIZEY=50
     LEGOSIZEX=0
     background=TRUE
-    backgroundcolour=c(255, 255, 255)
+    backgroundcolour=c(0, 0, 0)
     randomcolours=FALSE
     LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
                     c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
