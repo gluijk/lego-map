@@ -239,23 +239,6 @@ legomap = function(img, name, k=8,
     # randomcolours: randomize clustering colours instead of using centroids
 
     
-    
-    img=readPNG("tenerife.png")
-    name='tenerife'
-    k=8  # 10
-    resize=TRUE
-    LEGOSIZEY=50
-    LEGOSIZEX=0
-    background=TRUE
-    backgroundcolour=c(0, 0, 0)
-    randomcolours=FALSE
-    LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
-                    c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
-                    c(1,1))
-    
-    
-    
-    
     require(png)  # read/save 8-bit PNG's
     require(terra)  # resample
     
@@ -295,7 +278,7 @@ legomap = function(img, name, k=8,
         dim(imglitebackround)=dim(imglite)
         
         # Store background pixel locations separately
-        writePNG(imglitebackround, paste0(name, "_lite_BGD.png"))
+        writePNG(imglitebackround, paste0(name, "_lite_bgd.png"))
         imgbackround=arrayresample(imglitebackround, method='near',
                                    DIMX*BRICKSIZE, DIMY*BRICKSIZE)
     }
@@ -553,13 +536,12 @@ inventory=legomap(img, 'africa', k=10,
         randomcolours=FALSE)
 
 img=readPNG("pokemon.png")
-inventory=legomap(img, 'pokemon', k=5,
+inventory=legomap(img, 'pokemon', k=4,
                   resize=FALSE,
                   background=TRUE, backgroundcolour=c(255, 255, 255))
 
-# CRASH -> FIX FOR k=0 -> NCOLOURS=0
 img=readPNG("rihanna.png")
-inventory=legomap(img, 'rihanna', k=0,
+inventory=legomap(img, 'rihanna', k=6,
                   resize=TRUE, LEGOSIZEY=50,
                   background=FALSE)
 
@@ -567,7 +549,7 @@ img=readPNG("michigan.png")
 inventory=legomap(img, 'michigan', k=10,
                   resize=TRUE, LEGOSIZEY=80,
                   background=TRUE, backgroundcolour=c(154, 140, 113),
-                  randomcolours=TRUE)
+                  randomcolours=FALSE)
 
 img=readPNG("guadarrama.png")
 inventory=legomap(img, 'guadarrama', k=7,
@@ -583,27 +565,3 @@ inventory=legomap(img, 'guadarrama', k=7,
 
 
 
-
-
-
-solid=readPNG("africasolid.png")
-
-# Calculate outline map (0/1) from solid map
-DIMY=nrow(solid)
-DIMX=ncol(solid)
-outline=solid*0
-# 1 pixel thickness outline
-outline[2:(DIMY-1), 2:(DIMX-1)]=
-    abs(solid[1:(DIMY-2), 2:(DIMX-1)] -
-            solid[2:(DIMY-1), 2:(DIMX-1)]) +
-    abs(solid[2:(DIMY-1), 1:(DIMX-2)] -
-            solid[2:(DIMY-1), 2:(DIMX-1)])
-# increase to 2 pixel thickness outline
-outline[2:(DIMY-1), 2:(DIMX-1)]=outline[2:(DIMY-1), 2:(DIMX-1)]+
-    outline[1:(DIMY-2), 2:(DIMX-1)]+outline[2:(DIMY-1), 3:(DIMX-0)]
-# increase to 3 pixel thickness outline
-# outline[2:(DIMY-1), 2:(DIMX-1)]=outline[2:(DIMY-1), 2:(DIMX-1)]+
-#     outline[1:(DIMY-2), 2:(DIMX-1)]+outline[3:(DIMY-0), 2:(DIMX-1)]+
-#     outline[2:(DIMY-1), 1:(DIMX-2)]+outline[2:(DIMY-1), 3:(DIMX-0)]
-# outline[outline!=0]=1
-writePNG(outline, "africaoutline.png")
