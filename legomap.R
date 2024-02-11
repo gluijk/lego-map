@@ -339,7 +339,7 @@ legomap = function(img, name, k=8,
             if (M2[i,1]) {
                 for (chan in 1:3) imgclust[i, chan]=centers[clustering[iPixel], chan]
                 iPixel=iPixel+1
-            }
+            } else for (chan in 1:3) imgclust[i, chan]=backgroundcolour[chan]/255
         }
         dim(imgclust)=c(DIMY, DIMX, 3)  # redim to DIMY x DIMX x 3 array (RGB image)
         
@@ -424,7 +424,7 @@ legomap = function(img, name, k=8,
     print(paste0(NBRICKS, " bricks used"))
     
 
-    # Restlore colour in (non-LEGO) background
+    # Restore colour in (non-LEGO) background
     if (background) {
         for (chan in 1:3) {
             indices=which(imgbackround[,,chan]==1)
@@ -509,12 +509,12 @@ legomap = function(img, name, k=8,
 
 # Examples
 img=readPNG("kraftwerk.png")
-inventory=legomap(img, 'kraftwerk', k=3,
+inventory=legomap(img, 'kraftwerk', k=2,
           resize=FALSE,
           background=TRUE, backgroundcolour=c(242, 94, 94))
 
 img=readPNG("conciertokraftwerk.png")
-inventory=legomap(img, 'conciertokraftwerk', k=3,
+inventory=legomap(img, 'conciertokraftwerk', k=2,
         resize=FALSE,
         background=TRUE, backgroundcolour=c(242, 94, 94))
 
@@ -557,3 +557,36 @@ inventory=legomap(img, 'guadarrama', k=7,
                   resize=TRUE, LEGOSIZEY=80,
                   background=FALSE,
                   randomcolours=FALSE)
+
+
+
+
+
+
+
+
+
+# Obtaining contours
+
+
+solid=readPNG("africasolid.png")
+
+# Calculate outline map (0/1) from solid map
+DIMY=nrow(solid)
+DIMX=ncol(solid)
+outline=solid*0
+# 1 pixel thickness outline
+outline[2:(DIMY-1), 2:(DIMX-1)]=
+    abs(solid[1:(DIMY-2), 2:(DIMX-1)] -
+            solid[2:(DIMY-1), 2:(DIMX-1)]) +
+    abs(solid[2:(DIMY-1), 1:(DIMX-2)] -
+            solid[2:(DIMY-1), 2:(DIMX-1)])
+# increase to 2 pixel thickness outline
+outline[2:(DIMY-1), 2:(DIMX-1)]=outline[2:(DIMY-1), 2:(DIMX-1)]+
+    outline[1:(DIMY-2), 2:(DIMX-1)]+outline[2:(DIMY-1), 3:(DIMX-0)]
+# increase to 3 pixel thickness outline
+# outline[2:(DIMY-1), 2:(DIMX-1)]=outline[2:(DIMY-1), 2:(DIMX-1)]+
+#     outline[1:(DIMY-2), 2:(DIMX-1)]+outline[3:(DIMY-0), 2:(DIMX-1)]+
+#     outline[2:(DIMY-1), 1:(DIMX-2)]+outline[2:(DIMY-1), 3:(DIMX-0)]
+# outline[outline!=0]=1
+writePNG(outline, "africaoutline.png")
