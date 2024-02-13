@@ -323,7 +323,6 @@ legomap = function(img, name, k=8,
     # writePNG(imgclust, paste0(name, "_cluster.png"))
 
 
-    
     ################################
     # 3. BUILD OUTPUT IMAGE WITH LEGO BRICKS
     
@@ -413,6 +412,8 @@ legomap = function(img, name, k=8,
     
     return(imgout)
 }
+
+
 
 
 # Examples
