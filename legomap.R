@@ -7,6 +7,13 @@ library(tiff)  # save 16-bit TIFF's
 library(png)  # save 8-bit PNG's
 library(terra)  # resample
 
+
+# Statistical mode function
+statmode = function(x) {
+    ux=unique(x)
+    ux[which.max(tabulate(match(x, ux)))]
+}
+
 # Generic array resample function
 # works both for matrix (grayscale images) or 3-channel arrays (colour images)
 arrayresample=function(img, DIMX, DIMY, method='bilinear') {
@@ -21,9 +28,10 @@ arrayresample=function(img, DIMX, DIMY, method='bilinear') {
 # Array downsample function
 # that allows to specify a background colour to be ignored in the resampling
 # by not participating in the colour averaging
-arraydownsample=function(img, DIMX=0, DIMY=0,
+smartdownsample=function(img, DIMX=0, DIMY=0, method='mean',
                          background=FALSE, backgroundcolour=c(0, 0, 0)) {
-
+    # method: 'mean', 'median', 'mode', 'nn'
+    
     DIMYorg=nrow(img)
     DIMXorg=ncol(img)
     if (!DIMX) DIMX=round(DIMY*DIMXorg/DIMYorg)
@@ -48,14 +56,48 @@ arraydownsample=function(img, DIMX=0, DIMY=0,
             if (length(bgd)>AREA/2) {  # more than half the area is background
                 for (chan in 1:3) imgout[i, j, chan]=backgroundcolour[chan]
             } else {
-                if (length(bgd)) {  # some background in crop -> ignore it
-                    imgout[i, j, 1]=mean(r[-bgd])
-                    imgout[i, j, 2]=mean(g[-bgd])
-                    imgout[i, j, 3]=mean(b[-bgd])
-                } else {  # no background in crop -> average whole crop
-                    imgout[i, j, 1]=mean(r)
-                    imgout[i, j, 2]=mean(g)
-                    imgout[i, j, 3]=mean(b)
+                if (method=='mean') {
+                    if (length(bgd)) {  # some background in crop -> ignore it
+                        imgout[i, j, 1]=mean(r[-bgd])
+                        imgout[i, j, 2]=mean(g[-bgd])
+                        imgout[i, j, 3]=mean(b[-bgd])
+                    } else {  # no background in crop -> average whole crop
+                        imgout[i, j, 1]=mean(r)
+                        imgout[i, j, 2]=mean(g)
+                        imgout[i, j, 3]=mean(b)
+                    }                   
+                } else if (method=='median') {
+                    if (length(bgd)) {  # some background in crop -> ignore it
+                        imgout[i, j, 1]=median(r[-bgd])
+                        imgout[i, j, 2]=median(g[-bgd])
+                        imgout[i, j, 3]=median(b[-bgd])
+                    } else {  # no background in crop -> median over whole crop
+                        imgout[i, j, 1]=median(r)
+                        imgout[i, j, 2]=median(g)
+                        imgout[i, j, 3]=median(b)
+                    }
+                } else if (method=='mode') {
+                    if (length(bgd)) {  # some background in crop -> ignore it
+                        imgout[i, j, 1]=statmode(r[-bgd])
+                        imgout[i, j, 2]=statmode(g[-bgd])
+                        imgout[i, j, 3]=statmode(b[-bgd])
+                    } else {  # no background in crop -> mode over whole crop
+                        imgout[i, j, 1]=statmode(r)
+                        imgout[i, j, 2]=statmode(g)
+                        imgout[i, j, 3]=statmode(b)
+                    }
+                } else if (method=='nn') {
+                    if (length(bgd)) {  # some background in crop -> ignore it
+                        imgout[i, j, 1]=r[-bgd][1]  # just take first sample
+                        imgout[i, j, 2]=g[-bgd][1]
+                        imgout[i, j, 3]=b[-bgd][1]
+                    } else {  # no background in crop -> sample centre of crop
+                        rowsamp=round(nrow(r)/2)
+                        colsamp=round(ncol(r)/2)
+                        imgout[i, j, 1]=r[rowsamp, colsamp]
+                        imgout[i, j, 2]=g[rowsamp, colsamp]
+                        imgout[i, j, 3]=b[rowsamp, colsamp]
+                    }
                 }
             }
         }
@@ -86,7 +128,7 @@ drawbrick=function(img,
     rangexmin = (xmin-1)*BRICKSIZE+1
     rangexmax = xmax*BRICKSIZE
     
-    # Draw pseudo 3D borders
+    # Draw pseudo 3D borders (3px width)
     imgout[rangeymin:(rangeymin+2), rangexmin:rangexmax,]=LIGHT
     imgout[rangeymin:rangeymax, (rangexmax-2):rangexmax,]=DARK
     imgout[(rangeymax-2):rangeymax, rangexmin:rangexmax,]=DARK
@@ -220,7 +262,7 @@ DibujarNumero = function(img, x0, y0, inc=FALSE, val=1, fill=FALSE,
 
 ###########################################################
 
-legomap = function(img, name, k=8,
+legomap = function(img, name, k=8, method='mean',
                    LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
                                    c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
                                    c(1,1)),  # hierarchical list
@@ -259,7 +301,7 @@ legomap = function(img, name, k=8,
     # Resize image
     if (resize) {
         print(paste0("Resizing '", name, "'..."))
-        imglite=arraydownsample(img, LEGOSIZEX, LEGOSIZEY,
+        imglite=smartdownsample(img, LEGOSIZEX, LEGOSIZEY, method=method,
                                 background, backgroundcolour)
     } else imglite=img  # no size change
     
@@ -299,7 +341,6 @@ legomap = function(img, name, k=8,
         M2=M*0
         for (i in 1:nrow(M))
             if (!identical(M[i,], backgroundcolour/255)) M2[i,]=1
-        # 1584 rows (pixels) of non-background
 
         # Standard k-means clustering
         set.seed(0)  # reproducible clustering
@@ -521,20 +562,17 @@ inventory=legomap(img, 'conciertokraftwerk', k=2,
 img=readPNG("tenerife.png")
 inventory=legomap(img, 'tenerife', k=8,
         resize=TRUE, LEGOSIZEY=50,
-        background=TRUE, backgroundcolour=c(0, 0, 0),
-        randomcolours=FALSE)
+        background=TRUE, backgroundcolour=c(0, 0, 0))
 
 img=readPNG("peninsula.png")
 inventory=legomap(img, 'peninsula', k=8,
                   resize=TRUE, LEGOSIZEY=80,
-                  background=TRUE, backgroundcolour=c(0, 0, 0),
-                  randomcolours=FALSE)
+                  background=TRUE, backgroundcolour=c(0, 0, 0))
 
 img=readPNG("africa.png")
 inventory=legomap(img, 'africa', k=10,
         resize=TRUE, LEGOSIZEY=60,
-        background=TRUE, backgroundcolour=c(255, 255, 255),
-        randomcolours=FALSE)
+        background=TRUE, backgroundcolour=c(255, 255, 255))
 
 img=readPNG("pokemon.png")
 inventory=legomap(img, 'pokemon', k=4,
@@ -549,16 +587,17 @@ inventory=legomap(img, 'rihanna', k=6,
 img=readPNG("michigan.png")
 inventory=legomap(img, 'michigan', k=10,
                   resize=TRUE, LEGOSIZEY=80,
-                  background=TRUE, backgroundcolour=c(154, 140, 113),
-                  randomcolours=FALSE)
+                  background=TRUE, backgroundcolour=c(154, 140, 113))
 
 img=readPNG("guadarrama.png")
 inventory=legomap(img, 'guadarrama', k=7,
                   resize=TRUE, LEGOSIZEY=80,
-                  background=FALSE,
-                  randomcolours=FALSE)
+                  background=FALSE)
 
-
+img=readPNG("arablelands.png")
+inventory=legomap(img, 'arablelands_mode', k=6, method='mode',
+                  resize=TRUE, LEGOSIZEY=80,
+                  background=TRUE, backgroundcolour=c(255,255,255))
 
 
 
