@@ -601,6 +601,10 @@ inventory=legomap(img, 'arablelands_nn', k=6, method='nn',
                   background=TRUE, backgroundcolour=c(255,255,255))
 
 
+img=readPNG("worldmap.png")
+inventory=legomap(img, 'worldmap_nn', k=1, method='nn',
+                  resize=TRUE, LEGOSIZEY=100,
+                  background=TRUE, backgroundcolour=c(255,255,255))
 
 
 
