@@ -262,7 +262,7 @@ DibujarNumero = function(img, x0, y0, inc=FALSE, val=1, fill=FALSE,
 
 ###########################################################
 
-legomap = function(img, name, k=8, method='mean',
+legomap = function(img, name, k=8, method='mean', type='LEGO',
                    LEGOBRICKS=list(c(8,8), c(6,6), c(4,6), c(4,4), c(2,4),
                                    c(2,3), c(2,2), c(1,4), c(1,3), c(1,2),
                                    c(1,1)),  # hierarchical list
@@ -285,7 +285,8 @@ legomap = function(img, name, k=8, method='mean',
     require(png)  # read/save 8-bit PNG's
     require(terra)  # resample
     
-    brick=readPNG("legobrick46x46.png")  #  46x46 pixels grayscale bitmap
+    if (type='LEGO') brick=readPNG("legobrick46x46.png")  # 46x46 pixels LEGO
+        else brick=array(0.5, c(46,46))  # 46x46 pixels flat
     # brick=readPNG("legobrick25x25.png")  #  25x25 pixels grayscale bitmap
     BRICKSIZE=nrow(brick)
     MIDGRAY=median(brick)  # median should be ~0.5 (8-bit 128/255)
@@ -595,7 +596,7 @@ inventory=legomap(img, 'guadarrama', k=7,
                   background=FALSE)
 
 img=readPNG("arablelands.png")
-inventory=legomap(img, 'arablelands_mode', k=6, method='mode',
+inventory=legomap(img, 'arablelands_nn', k=6, method='nn',
                   resize=TRUE, LEGOSIZEY=80,
                   background=TRUE, backgroundcolour=c(255,255,255))
 
