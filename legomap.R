@@ -285,7 +285,7 @@ legomap = function(img, name, k=8, method='mean', type='LEGO',
     require(png)  # read/save 8-bit PNG's
     require(terra)  # resample
     
-    if (type='LEGO') brick=readPNG("legobrick46x46.png")  # 46x46 pixels LEGO
+    if (type=='LEGO') brick=readPNG("legobrick46x46.png")  # 46x46 pixels LEGO
         else brick=array(0.5, c(46,46))  # 46x46 pixels flat
     # brick=readPNG("legobrick25x25.png")  #  25x25 pixels grayscale bitmap
     BRICKSIZE=nrow(brick)
@@ -339,21 +339,21 @@ legomap = function(img, name, k=8, method='mean', type='LEGO',
         # Rearrange imglite as a N x 3 array with RGB values in 3 columns
         M=cbind(c(imglite[,,1]), c(imglite[,,2]), c(imglite[,,3]))
 
-        M2=M*0
+        Mnotbgd=array(0, c(DIMY*DIMX))  # 1=pixel to be coloured (not background)
         for (i in 1:nrow(M))
-            if (!identical(M[i,], backgroundcolour/255)) M2[i,]=1
+            if (!identical(M[i,], backgroundcolour/255)) Mnotbgd[i]=1
 
         # Standard k-means clustering
         set.seed(0)  # reproducible clustering
         colnames(M)=c("R", "G", "B")
-        M3=M[
+        Mclust=M[  # subset of pixels to be clustered (not background pixels)
             M[,1]!=backgroundcolour[1]/255 |
             M[,2]!=backgroundcolour[2]/255 |
             M[,3]!=backgroundcolour[3]/255]
-        dim(M3)=c(length(M3)/3,3)
+        dim(Mclust)=c(length(Mclust)/3, 3)
         
-        colnames(M3)=c("R", "G", "B")
-        kmeansfit=kmeans(subset(M3, select=c("R", "G", "B")), centers=NCOLOURS,
+        colnames(Mclust)=c("R", "G", "B")
+        kmeansfit=kmeans(subset(Mclust, select=c("R", "G", "B")), centers=NCOLOURS,
                          nstart=2000, iter.max=1000)  # high nstart can prevent from
         clustering=kmeansfit$cluster           # missing the tiniest clusters
         centers=kmeansfit$centers  # clustering centroids (average colours)
@@ -367,18 +367,19 @@ legomap = function(img, name, k=8, method='mean', type='LEGO',
         
         # Clustering histogram
         png(paste0(name, "_hist.png"), width=512, height=400)
-        breaks=seq(0, NCOLOURS, length.out=NCOLOURS+1)
-        colores=rgb(centers[,1], centers[,2], centers[,3])
-        hist(clustering, breaks=breaks, col=colores,  # lty="blank",
-             main=paste0("'", name, "' cluster histogram (k=", k, ")"), axes=FALSE)
-        axis(1, at=breaks, labels=TRUE)
+            breaks=seq(0, NCOLOURS, length.out=NCOLOURS+1)
+            colores=rgb(centers[,1], centers[,2], centers[,3])
+            hist(clustering, breaks=breaks, col=colores,  # lty="blank",
+                 main=paste0("'", name, "' cluster histogram (k=", k, ")"),
+                 axes=FALSE)
+            axis(1, at=breaks, labels=TRUE)
         dev.off()
         
         # Build clustered coloured image
         imgclust=array(0, c(DIMY*DIMX, 3))  # configure DIMY*DIMX x 3 array
         iPixel=1
         for (i in 1:nrow(M)) {
-            if (M2[i,1]) {
+            if (Mnotbgd[i]) {  # not background?
                 for (chan in 1:3) imgclust[i, chan]=centers[clustering[iPixel], chan]
                 iPixel=iPixel+1
             } else for (chan in 1:3) imgclust[i, chan]=backgroundcolour[chan]/255
@@ -420,21 +421,17 @@ legomap = function(img, name, k=8, method='mean', type='LEGO',
     
     Inventory=array(0, c(NCOLOURS, NSIZES))  # how many bricks of each colour and size
     for (k in 1:NCOLOURS) {  # loop trough clusters
-        # indices=which(clustering==k)
-        # imgclust1=array(0, c(DIMY, DIMX))
-        # imgclust1[indices]=1  # set to 1 pixels belonging to cluster k
-        
         iPixel=1
-        dim(imgclust)=c(DIMY*DIMX, 3)  # redim to DIMY x DIMX x 3 array (RGB image)
-        imgclust1=array(0, c(DIMY*DIMX))
+        dim(imgclust)=c(DIMY*DIMX, 3)  # redim to DIMY*DIMX x 3 array (RGB list)
+        imgclust1=array(0, c(DIMY*DIMX))  # which pixels are in cluster k
         for (i in 1:nrow(M)) {
-            if (M2[i,1]) {
-                if (clustering[iPixel]==k) imgclust1[i]=1
+            if (Mnotbgd[i]) {
+                if (clustering[iPixel]==k) imgclust1[i]=1  # pixel is in cluster k
                 iPixel=iPixel+1
             }
         }
         dim(imgclust)=c(DIMY, DIMX, 3)  # redim to DIMY x DIMX x 3 array (RGB image)
-        dim(imgclust1)=c(DIMY, DIMX)  # redim to DIMY x DIMX x 3 array (RGB image)
+        dim(imgclust1)=c(DIMY, DIMX)  # redim to DIMY x DIMX array
         
         for (size in 1:NSIZES) {  # loop trough brick sizes
             DIMYBRICK=LEGOBRICKS[[size]][1]
@@ -591,8 +588,8 @@ inventory=legomap(img, 'michigan', k=10,
                   background=TRUE, backgroundcolour=c(154, 140, 113))
 
 img=readPNG("guadarrama.png")
-inventory=legomap(img, 'guadarrama', k=7,
-                  resize=TRUE, LEGOSIZEY=80,
+inventory=legomap(img, 'guadarrama2', k=4,
+                  resize=TRUE, LEGOSIZEY=32,
                   background=FALSE)
 
 img=readPNG("arablelands.png")
@@ -605,8 +602,6 @@ img=readPNG("worldmap.png")
 inventory=legomap(img, 'worldmap_nn', k=1, method='nn',
                   resize=TRUE, LEGOSIZEY=100,
                   background=TRUE, backgroundcolour=c(255,255,255))
-
-
 
 
 
