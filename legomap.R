@@ -627,7 +627,6 @@ inventory=legomap(img, 'formentera_median', k=3, method='median',
 
 # Obtaining contours
 
-
 solid=readPNG("africasolid.png")
 
 # Calculate outline map (0/1) from solid map
