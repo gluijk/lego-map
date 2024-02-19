@@ -1,6 +1,6 @@
 # Lego maps
 # www.overfitting.net
-# https://www.overfitting.net/
+# https://www.overfitting.net/2024/02/mapas-estilo-lego-con-r.html
 
 
 library(tiff)  # save 16-bit TIFF's
@@ -38,7 +38,9 @@ smartdownsample=function(img, DIMX=0, DIMY=0, method='mean',
     else if (!DIMY) DIMY=round(DIMX*DIMYorg/DIMXorg)    
 
     imgout=array(0, c(DIMY, DIMX, 3))
-    backgroundcolour=backgroundcolour/255  # convert 0..255 range to 0..1
+    if (background) backgroundcolour=backgroundcolour/255  # convert 0..255 range to 0..1
+        else backgroundcolour=c(-1, -1, -1)
+    
     for (i in 1:DIMY) {
         imin=round(DIMYorg/DIMY*(i-1)+1)
         imax=round(DIMYorg/DIMY*i)
@@ -48,8 +50,12 @@ smartdownsample=function(img, DIMX=0, DIMY=0, method='mean',
             crop=img[imin:imax, jmin:jmax, ]
             AREA=(jmax-jmin+1)*(imax-imin+1)  # dim(crop)[1]*dim(crop)[2]
             r=crop[,,1]
+            # r=r[2:length(r)]  # median 2.0
+            # print(paste0("(i,j)=(",i,",",j,"): length(r)=", length(r)))
             g=crop[,,2]
+            # g=g[2:length(g)]  # median 2.0
             b=crop[,,3]
+            # b=b[2:length(b)]  # median 2.0
             bgd=which(r==backgroundcolour[1] &
                       g==backgroundcolour[2] &
                       b==backgroundcolour[3])
@@ -568,9 +574,9 @@ inventory=legomap(img, 'peninsula', k=8,
                   background=TRUE, backgroundcolour=c(0, 0, 0))
 
 img=readPNG("africa.png")
-inventory=legomap(img, 'africa', k=10,
-        resize=TRUE, LEGOSIZEY=60,
-        background=TRUE, backgroundcolour=c(255, 255, 255))
+inventory=legomap(img, 'africa2', k=10,
+        resize=TRUE, LEGOSIZEY=50,
+        background=FALSE, backgroundcolour=c(255, 255, 255))
 
 img=readPNG("pokemon.png")
 inventory=legomap(img, 'pokemon', k=4,
@@ -597,11 +603,25 @@ inventory=legomap(img, 'arablelands_nn', k=6, method='nn',
                   resize=TRUE, LEGOSIZEY=80,
                   background=TRUE, backgroundcolour=c(255,255,255))
 
-
 img=readPNG("worldmap.png")
 inventory=legomap(img, 'worldmap_nn', k=1, method='nn',
                   resize=TRUE, LEGOSIZEY=100,
                   background=TRUE, backgroundcolour=c(255,255,255))
+
+img=readPNG("test.png")
+inventory=legomap(img, 'test_nn', k=2, method='nn',
+                  resize=TRUE, LEGOSIZEY=100,
+                  background=FALSE, backgroundcolour=c(0,0,0))
+
+img=readPNG("formentera4.png")
+inventory=legomap(img, 'formentera_medianALT', k=3, method='median',
+                  resize=TRUE, LEGOSIZEY=125,
+                  background=FALSE, backgroundcolour=c(0,0,0))
+
+img=readPNG("formentera4.png")
+inventory=legomap(img, 'formentera_median', k=3, method='median',
+                  resize=TRUE, LEGOSIZEY=125,
+                  background=TRUE, backgroundcolour=c(218,241,248))
 
 
 
